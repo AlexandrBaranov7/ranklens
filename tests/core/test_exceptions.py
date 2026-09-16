@@ -20,6 +20,7 @@ from ranklens.core.exceptions import (
     StatisticalError,
     UngroupedInputError,
     UnsortedInputError,
+    UnsupportedFormatError,
     UnsupportedModelError,
 )
 
@@ -32,6 +33,7 @@ INSTANCES: list[tuple[RankLensError, type[RankLensError]]] = [
     (MissingQrelsError("q1"), DataError),
     (MetricNotFoundError("ndgc", ["ndcg", "mrr"]), ConfigError),
     (DuplicateMetricError("ndcg"), ConfigError),
+    (UnsupportedFormatError("run.xlsx", [".csv", ".jsonl"]), ConfigError),
     (UnsupportedModelError("torch.nn.Module", ["catboost", "lightgbm"]), ModelError),
     (InsufficientSampleError(12, 30), StatisticalError),
 ]
@@ -127,3 +129,9 @@ def test_warnings_are_user_warnings() -> None:
     assert issubclass(SkippedRowsWarning, RankLensWarning)
     assert issubclass(RankLensWarning, UserWarning)
     assert not issubclass(RankLensWarning, RankLensError)
+
+
+def test_unsupported_format_lists_extensions() -> None:
+    message = str(UnsupportedFormatError("run.xlsx", [".csv", ".jsonl"]))
+    assert "'run.xlsx'" in message
+    assert ".csv, .jsonl (optionally .gz)" in message

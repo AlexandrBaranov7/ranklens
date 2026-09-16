@@ -17,6 +17,7 @@ from ranklens.core.exceptions import (
     StatisticalError,
     UngroupedInputError,
     UnsortedInputError,
+    UnsupportedFormatError,
     UnsupportedModelError,
 )
 from ranklens.core.result import ErrorSummary
@@ -45,5 +46,6 @@ __all__ = [
     "StatisticalError",
     "UngroupedInputError",
     "UnsortedInputError",
+    "UnsupportedFormatError",
     "UnsupportedModelError",
 ]

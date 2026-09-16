@@ -25,6 +25,7 @@ __all__ = [
     "StatisticalError",
     "UngroupedInputError",
     "UnsortedInputError",
+    "UnsupportedFormatError",
     "UnsupportedModelError",
 ]
 
@@ -179,6 +180,23 @@ class DuplicateMetricError(ConfigError):
         return (
             f"metric {self.name!r} is already registered; "
             "choose another name or check for a plugin that registers it twice"
+        )
+
+
+class UnsupportedFormatError(ConfigError):
+    """The input format cannot be determined or is not supported."""
+
+    def __init__(self, path: str, supported: Iterable[str]) -> None:
+        names = tuple(supported)
+        super().__init__(path, names)
+        self.path = path
+        self.supported = names
+
+    def __str__(self) -> str:
+        return (
+            f"cannot determine the format of {self.path!r}; "
+            f"use one of the extensions {', '.join(self.supported)} (optionally .gz) "
+            "or pass the format explicitly"
         )
 
 
