@@ -22,8 +22,7 @@ poetry install          # Poetry >= 2.4
 poetry run ranklens --version
 ```
 
-Правила разработки — в [CONTRIBUTING.md](CONTRIBUTING.md),
-принятые решения — в [docs/decisions.md](docs/decisions.md).
+Правила разработки — в [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Лицензия
 
