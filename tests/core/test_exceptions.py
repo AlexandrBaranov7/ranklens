@@ -11,10 +11,14 @@ from ranklens.core.exceptions import (
     InsufficientSampleError,
     MalformedRowError,
     MetricNotFoundError,
+    MissingColumnError,
     MissingQrelsError,
     ModelError,
     RankLensError,
+    RankLensWarning,
+    SkippedRowsWarning,
     StatisticalError,
+    UngroupedInputError,
     UnsortedInputError,
     UnsupportedModelError,
 )
@@ -22,6 +26,8 @@ from ranklens.core.exceptions import (
 INSTANCES: list[tuple[RankLensError, type[RankLensError]]] = [
     (MalformedRowError(7, "q1\tdoc", "expected 3 columns, got 2", path="run.tsv"), DataError),
     (UnsortedInputError(12, "q2", "q1"), DataError),
+    (UngroupedInputError(40, "q1", path="run.csv"), DataError),
+    (MissingColumnError("query_id", ["qid", "doc_id"], path="run.csv"), DataError),
     (DuplicateDocumentError("q1", "d1"), DataError),
     (MissingQrelsError("q1"), DataError),
     (MetricNotFoundError("ndgc", ["ndcg", "mrr"]), ConfigError),
@@ -50,8 +56,9 @@ def test_pickle_round_trip(error: RankLensError, group: type[RankLensError]) -> 
 def test_all_public_errors_are_covered() -> None:
     covered = {type(e) for e, _ in INSTANCES}
     groups = {RankLensError, DataError, ConfigError, ModelError, StatisticalError}
+    warnings = {RankLensWarning, SkippedRowsWarning}
     public = {getattr(exc, name) for name in exc.__all__}
-    assert public - groups == covered
+    assert public - groups - warnings == covered
 
 
 def test_malformed_row_message_has_location_and_reason() -> None:
@@ -95,3 +102,28 @@ def test_metric_not_found_with_empty_registry() -> None:
 
 def test_unsupported_model_points_to_callable_adapter() -> None:
     assert "CallableAdapter" in str(UnsupportedModelError("x.Model", ["catboost"]))
+
+
+def test_ungrouped_input_names_query_and_fix() -> None:
+    message = str(UngroupedInputError(40, "q1", path="run.csv"))
+    assert message.startswith("run.csv:40: query 'q1' appears again")
+    assert "--sort" in message
+
+
+def test_missing_column_suggests_closest() -> None:
+    message = str(MissingColumnError("query_id", ["qid", "doc_id", "query"], path="run.csv"))
+    assert message.startswith("run.csv: required column 'query_id' is missing")
+    assert "did you mean 'query'?" in message
+    assert "Available: qid, doc_id, query" in message
+
+
+def test_missing_column_without_header() -> None:
+    message = str(MissingColumnError("doc_id", []))
+    assert message.startswith("input: required column 'doc_id'")
+    assert "no columns found" in message
+
+
+def test_warnings_are_user_warnings() -> None:
+    assert issubclass(SkippedRowsWarning, RankLensWarning)
+    assert issubclass(RankLensWarning, UserWarning)
+    assert not issubclass(RankLensWarning, RankLensError)

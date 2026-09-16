@@ -16,10 +16,14 @@ __all__ = [
     "InsufficientSampleError",
     "MalformedRowError",
     "MetricNotFoundError",
+    "MissingColumnError",
     "MissingQrelsError",
     "ModelError",
     "RankLensError",
+    "RankLensWarning",
+    "SkippedRowsWarning",
     "StatisticalError",
+    "UngroupedInputError",
     "UnsortedInputError",
     "UnsupportedModelError",
 ]
@@ -78,6 +82,42 @@ class UnsortedInputError(DataError):
             f"({self.curr_qid!r} comes after {self.prev_qid!r}). "
             "Sort the file by query_id as strings or pass --sort."
         )
+
+
+class UngroupedInputError(DataError):
+    """Rows of one query are not contiguous."""
+
+    def __init__(self, line_no: int, query_id: str, path: str | None = None) -> None:
+        super().__init__(line_no, query_id, path)
+        self.line_no = line_no
+        self.query_id = query_id
+        self.path = path
+
+    def __str__(self) -> str:
+        return (
+            f"{_location(self.path, self.line_no)}: query {self.query_id!r} appears again "
+            "after other queries; rows of each query must be contiguous. "
+            "Sort the file by query_id or pass --sort."
+        )
+
+
+class MissingColumnError(DataError):
+    """A required column is absent from the input."""
+
+    def __init__(self, column: str, available: Iterable[str], path: str | None = None) -> None:
+        names = tuple(available)
+        super().__init__(column, names, path)
+        self.column = column
+        self.available = names
+        self.path = path
+
+    def __str__(self) -> str:
+        message = f"{self.path or 'input'}: required column {self.column!r} is missing"
+        close = difflib.get_close_matches(self.column, self.available, n=1)
+        if close:
+            message += f"; did you mean {close[0]!r}?"
+        listing = ", ".join(self.available) if self.available else "no columns found"
+        return f"{message} Available: {listing}"
 
 
 class DuplicateDocumentError(DataError):
@@ -186,3 +226,14 @@ class InsufficientSampleError(StatisticalError):
             f"got {self.n} queries, at least {self.required} are required; "
             "use the MDE calculator to estimate the sample size you need"
         )
+
+
+# --- warnings -------------------------------------------------------------
+
+
+class RankLensWarning(UserWarning):
+    """Base class for all warnings emitted by ranklens."""
+
+
+class SkippedRowsWarning(RankLensWarning):
+    """Invalid input rows were skipped in non-strict mode."""
