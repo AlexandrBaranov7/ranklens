@@ -1,0 +1,21 @@
+name: Предложение
+description: Новая метрика, оценщик, адаптер модели или другая возможность
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую задачу это решает
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Предложение
+      description: Для метрик и оценщиков — формула и ссылка на источник.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Альтернативы

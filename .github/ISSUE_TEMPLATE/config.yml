@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Сообщить об уязвимости
+    url: https://github.com/AlexandrBaranov7/ranklens/security/advisories/new
+    about: Уязвимости — только приватно, не через публичный issue.

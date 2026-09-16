@@ -1,0 +1,26 @@
+name: Ошибка
+description: Неверный результат, падение или непонятное сообщение об ошибке
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Что произошло
+      description: Ожидаемое и фактическое поведение.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Как воспроизвести
+      description: Минимальный пример кода или команды и небольшой фрагмент данных.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версии
+      description: Вывод `ranklens --version`, версия Python и ОС.
+    validations:
+      required: true
