@@ -1,0 +1,112 @@
+[build-system]
+requires = ["poetry-core>=2.4,<3"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "ranklens"
+version = "0.0.1.dev0"
+description = "Offline evaluation, statistical comparison and explanation of ranking quality"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "AlexandrBaranov7" }]
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26", "pandas>=2.2"]
+keywords = ["ranking", "information-retrieval", "ndcg", "evaluation", "off-policy", "learning-to-rank"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+viz = ["plotly>=5.18"]
+models = ["catboost", "lightgbm", "xgboost", "scikit-learn"]
+
+[project.urls]
+Homepage = "https://github.com/AlexandrBaranov7/ranklens"
+Issues = "https://github.com/AlexandrBaranov7/ranklens/issues"
+Changelog = "https://github.com/AlexandrBaranov7/ranklens/blob/main/CHANGELOG.md"
+
+[project.scripts]
+ranklens = "ranklens.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "pytest-cov>=5",
+  "pytest-benchmark>=4",
+  "hypothesis>=6.100",
+  "mypy>=1.11",
+  "ruff>=0.6",
+  "pre-commit>=3.7",
+]
+
+[tool.poetry]
+packages = [{ include = "ranklens", from = "src" }]
+requires-poetry = ">=2.4"
+
+# --- ruff ---------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F", "I", "N", "UP", "B", "SIM", "RUF",
+  "C4",   # comprehensions
+  "PTH",  # pathlib instead of os.path
+  "PT",   # pytest style
+  "RET",  # return consistency
+  "T20",  # no print in library code
+  "ISC",  # implicit string concat
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["T20"]
+"src/ranklens/cli.py" = ["T20"]
+
+# --- mypy ---------------------------------------------------------------
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+files = ["src", "tests"]
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+
+# --- pytest / coverage --------------------------------------------------
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+xfail_strict = true
+filterwarnings = ["error"]
+markers = [
+  "slow: statistical validation and other long-running tests",
+]
+
+[tool.coverage.run]
+source = ["ranklens"]
+branch = true
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "\\.\\.\\.",
+]

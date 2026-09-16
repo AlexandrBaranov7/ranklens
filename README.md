@@ -7,14 +7,19 @@
 
 > Статус: ранняя разработка (pre-alpha). Публичного API пока нет.
 
-## Установка для разработки
+## Установка
+
+```bash
+pip install ranklens   # после первого релиза
+```
+
+## Разработка
 
 ```bash
 git clone https://github.com/AlexandrBaranov7/ranklens.git
 cd ranklens
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-ranklens --version
+poetry install          # Poetry >= 2.4
+poetry run ranklens --version
 ```
 
 Правила разработки — в [CONTRIBUTING.md](CONTRIBUTING.md),
