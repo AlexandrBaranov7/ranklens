@@ -1,4 +1,4 @@
-"""Streaming readers for runs."""
+"""Readers for runs (streamed) and relevance judgements (loaded)."""
 
 import warnings
 from collections.abc import Iterator, Sequence
@@ -13,12 +13,12 @@ from ranklens.core.exceptions import (
     UngroupedInputError,
     UnsortedInputError,
 )
-from ranklens.core.types import DocId, QueryId, RankedList, SegmentKey
+from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
 from ranklens.io.errors import ErrorCollector
 from ranklens.io.formats import FormatName, detect_format, iter_records
-from ranklens.io.schema import RunRow, RunSchema, parse_run_row
+from ranklens.io.schema import QrelsSchema, RunRow, RunSchema, parse_qrels_row, parse_run_row
 
-__all__ = ["iter_run"]
+__all__ = ["iter_run", "read_qrels"]
 
 
 def iter_run(
@@ -96,13 +96,66 @@ def iter_run(
     if group is not None:
         yield group.build(order)
     if errors is None:
-        summary = collector.snapshot()
-        if summary.total:
-            warnings.warn(str(summary), SkippedRowsWarning, stacklevel=2)
+        _warn_if_skipped(collector)
+
+
+def read_qrels(
+    path: str | PathLike[str],
+    *,
+    schema: QrelsSchema | None = None,
+    fmt: FormatName | None = None,
+    strict: bool = False,
+    errors: ErrorCollector | None = None,
+) -> Qrels:
+    """Load relevance judgements into memory: ``qrels[query_id][doc_id] -> relevance``.
+
+    Unlike runs, qrels are small and are needed for random access, so rows may come
+    in any order. A repeated (query_id, doc_id) pair is an error: the first
+    judgement is kept in non-strict mode. Error handling is the same as in
+    :func:`iter_run`.
+    """
+    fmt = fmt or detect_format(path)
+    schema = schema or (QrelsSchema.trec() if fmt == "trec" else QrelsSchema())
+    name = str(path)
+    collector = errors if errors is not None else ErrorCollector()
+    on_error = _raise if strict else collector.record
+
+    records = iter_records(
+        path,
+        fmt,
+        required=schema.required,
+        trec_columns=QrelsSchema.TREC_COLUMNS,
+        on_error=on_error,
+    )
+    qrels: Qrels = {}
+    for record in records:
+        try:
+            row = parse_qrels_row(record, schema, name)
+        except MalformedRowError as exc:
+            on_error(exc)
+            continue
+        judgements = qrels.setdefault(row.query_id, {})
+        if row.doc_id in judgements:
+            previous = judgements[row.doc_id]
+            reason = f"repeated judgement for document {row.doc_id!r} (first: {previous:g})"
+            on_error(MalformedRowError(row.line_no, record.raw, reason, path=name))
+            continue
+        judgements[row.doc_id] = row.relevance
+
+    if errors is None:
+        _warn_if_skipped(collector)
+    return qrels
 
 
 def _raise(error: DataError) -> NoReturn:
     raise error
+
+
+def _warn_if_skipped(collector: ErrorCollector) -> None:
+    summary = collector.snapshot()
+    if summary.total:
+        # stacklevel 3: past this helper and the reader, to the caller's line
+        warnings.warn(str(summary), SkippedRowsWarning, stacklevel=3)
 
 
 class _Group:

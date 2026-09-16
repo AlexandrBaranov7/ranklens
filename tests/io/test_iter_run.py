@@ -157,6 +157,12 @@ def test_non_strict_without_collector_warns_once_at_the_end(tmp_path: Path) -> N
     assert len(record) == 1
 
 
+def test_warning_points_at_the_consuming_line(tmp_path: Path) -> None:
+    with pytest.warns(SkippedRowsWarning) as record:
+        list(iter_run(write(tmp_path / "run.csv", BROKEN), schema=BROKEN_SCHEMA))
+    assert record[0].filename == __file__
+
+
 def test_clean_file_does_not_warn(tmp_path: Path) -> None:
     list(iter_run(write(tmp_path / "run.csv", "query_id,doc_id\nq1,a\n")))
 
