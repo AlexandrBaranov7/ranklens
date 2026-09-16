@@ -7,6 +7,9 @@
 
 ### Added
 
+- `ranklens.core`: `RankedList`, `ClickEvent`, `QueryId`/`DocId`, `Qrels`, `SegmentKey`
+  и иерархия исключений `RankLensError`.
+- Архитектурный тест: границы слоёв из CONTRIBUTING проверяются по AST пакета.
 - Каркас проекта: src-layout, Poetry с lock-файлом, CLI `ranklens --version`.
 - Инструменты: ruff, mypy strict, pytest с гейтом покрытия 85%, pre-commit.
 - CI: lint, types, тесты на Python 3.11–3.14 × Linux/macOS/Windows, установка wheel.
