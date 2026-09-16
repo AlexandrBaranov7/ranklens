@@ -7,6 +7,8 @@
 
 ### Added
 
+- `ranklens.io.formats`: чтение csv, tsv, jsonl и TREC (в том числе `.gz`),
+  определение формата по расширению.
 - `ranklens.io.ErrorCollector`: накопитель ошибок данных для non-strict чтения
   (`record`, `snapshot`) с ограниченным числом примеров на тип ошибки;
   `ranklens.core.ErrorSummary` — неизменяемый снимок для CLI и отчётов.
