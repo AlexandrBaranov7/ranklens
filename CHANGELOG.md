@@ -9,6 +9,8 @@
 
 - `ranklens.io.formats`: чтение csv, tsv, jsonl и TREC (в том числе `.gz`, `.bz2`, `.xz`),
   определение формата по расширению.
+- `ranklens.io.schema`: `RunSchema`, `QrelsSchema` — имена колонок и типизированный
+  разбор строк с понятными ошибками.
 - `ranklens.io.ErrorCollector`: накопитель ошибок данных для non-strict чтения
   (`record`, `snapshot`) с ограниченным числом примеров на тип ошибки;
   `ranklens.core.ErrorSummary` — неизменяемый снимок для CLI и отчётов.
