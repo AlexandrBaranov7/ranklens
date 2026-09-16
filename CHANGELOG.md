@@ -7,6 +7,9 @@
 
 ### Added
 
+- `ranklens.io.iter_run`: потоковое чтение прогона по одному `RankedList` на запрос;
+  порядок документов по файлу или по `rank`, проверка группировки или сортировки
+  по query_id, strict / non-strict режимы.
 - `ranklens.io.formats`: чтение csv, tsv, jsonl и TREC (в том числе `.gz`, `.bz2`, `.xz`),
   определение формата по расширению.
 - `ranklens.io.schema`: `RunSchema`, `QrelsSchema` — имена колонок и типизированный
