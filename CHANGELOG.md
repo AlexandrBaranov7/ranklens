@@ -7,6 +7,10 @@
 
 ### Added
 
+- `ranklens.io.ErrorCollector`: счётчик ошибок данных для non-strict чтения
+  с ограниченным числом примеров на тип ошибки.
+- Исключения `UngroupedInputError`, `MissingColumnError`; предупреждения
+  `RankLensWarning`, `SkippedRowsWarning`.
 - `ranklens.core`: `RankedList`, `QueryId`/`DocId`, `Qrels`, `SegmentKey`
   и иерархия исключений `RankLensError`.
 - Архитектурный тест: границы слоёв из CONTRIBUTING проверяются по AST пакета.
