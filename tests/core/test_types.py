@@ -4,7 +4,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from ranklens.core import ClickEvent, DocId, DuplicateDocumentError, QueryId, RankedList
+from ranklens.core import DocId, DuplicateDocumentError, QueryId, RankedList
 
 Q = QueryId("q1")
 
@@ -68,13 +68,3 @@ class TestRankedList:
         head = ranked.top(k)
         assert len(head) == min(k, len(ids))
         assert ranked.docs[: len(head)] == head
-
-
-class TestClickEvent:
-    def test_rank_is_one_based(self) -> None:
-        event = ClickEvent(Q, DocId("a"), position=0, clicked=True)
-        assert event.rank == 1
-
-    def test_rejects_negative_position(self) -> None:
-        with pytest.raises(ValueError, match="0-based"):
-            ClickEvent(Q, DocId("a"), position=-1, clicked=False)

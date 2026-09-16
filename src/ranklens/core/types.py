@@ -5,8 +5,9 @@ from typing import NewType, TypeAlias
 
 from ranklens.core.exceptions import DuplicateDocumentError
 
-__all__ = ["ClickEvent", "DocId", "Qrels", "QueryId", "RankedList", "SegmentKey"]
+__all__ = ["DocId", "Qrels", "QueryId", "RankedList", "SegmentKey"]
 
+# ids are normalized to str when read: "1" and 1 must not become different keys
 QueryId = NewType("QueryId", str)
 DocId = NewType("DocId", str)
 
@@ -51,23 +52,3 @@ class RankedList:
         if k < 1:
             raise ValueError(f"k must be >= 1, got {k}")
         return self.docs[:k]
-
-
-@dataclass(frozen=True, slots=True)
-class ClickEvent:
-    """One logged impression of a document and whether it was clicked."""
-
-    query_id: QueryId
-    doc_id: DocId
-    position: int
-    clicked: bool
-    segments: SegmentKey = ()
-
-    def __post_init__(self) -> None:
-        if self.position < 0:
-            raise ValueError(f"position is 0-based and must be >= 0, got {self.position}")
-
-    @property
-    def rank(self) -> int:
-        """1-based rank used in formulas."""
-        return self.position + 1

@@ -7,7 +7,7 @@
 
 ### Added
 
-- `ranklens.core`: `RankedList`, `ClickEvent`, `QueryId`/`DocId`, `Qrels`, `SegmentKey`
+- `ranklens.core`: `RankedList`, `QueryId`/`DocId`, `Qrels`, `SegmentKey`
   и иерархия исключений `RankLensError`.
 - Архитектурный тест: границы слоёв из CONTRIBUTING проверяются по AST пакета.
 - Каркас проекта: src-layout, Poetry с lock-файлом, CLI `ranklens --version`.
