@@ -15,10 +15,9 @@ from ranklens.core.exceptions import (
     UnsortedInputError,
     UnsupportedModelError,
 )
-from ranklens.core.types import ClickEvent, DocId, Qrels, QueryId, RankedList, SegmentKey
+from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
 
 __all__ = [
-    "ClickEvent",
     "ConfigError",
     "DataError",
     "DocId",
