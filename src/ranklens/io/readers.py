@@ -2,7 +2,6 @@
 
 import warnings
 from collections.abc import Iterator, Sequence
-from os import PathLike
 from typing import Literal, NoReturn
 
 from ranklens.core.exceptions import (
@@ -15,14 +14,14 @@ from ranklens.core.exceptions import (
 )
 from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
 from ranklens.io.errors import ErrorCollector
-from ranklens.io.formats import FormatName, detect_format, iter_records
+from ranklens.io.formats import FormatName, Source, detect_format, iter_records, source_name
 from ranklens.io.schema import QrelsSchema, RunRow, RunSchema, parse_qrels_row, parse_run_row
 
 __all__ = ["iter_run", "read_qrels"]
 
 
 def iter_run(
-    path: str | PathLike[str],
+    source: Source,
     *,
     schema: RunSchema | None = None,
     fmt: FormatName | None = None,
@@ -31,9 +30,11 @@ def iter_run(
     strict: bool = False,
     errors: ErrorCollector | None = None,
 ) -> Iterator[RankedList]:
-    """Stream a run file as one :class:`RankedList` per query.
+    """Stream a run as one :class:`RankedList` per query.
 
-    Only the rows of the current query are held in memory.
+    ``source`` is a file (csv, tsv, jsonl, TREC, parquet, Feather) or an in-memory
+    table (pandas, polars, pyarrow). Only the rows of the current query are held
+    in memory.
 
     ``order`` sets document positions: file order, or ascending ``rank`` column
     (stable for ties). ``check`` sets the input contract:
@@ -47,16 +48,16 @@ def iter_run(
     in ``errors``; without a collector a :class:`SkippedRowsWarning` is emitted
     when the file is exhausted. Grouping and sorting violations always raise.
     """
-    fmt = fmt or detect_format(path)
+    fmt = fmt or detect_format(source)
     schema = schema or (RunSchema.trec() if fmt == "trec" else RunSchema())
     if order == "rank" and schema.rank is None:
         raise ValueError('order="rank" requires a rank column in the schema')
-    name = str(path)
+    name = source_name(source)
     collector = errors if errors is not None else ErrorCollector()
     on_error = _raise if strict else collector.record
 
     records = iter_records(
-        path,
+        source,
         fmt,
         required=schema.required,
         trec_columns=RunSchema.TREC_COLUMNS,
@@ -100,7 +101,7 @@ def iter_run(
 
 
 def read_qrels(
-    path: str | PathLike[str],
+    source: Source,
     *,
     schema: QrelsSchema | None = None,
     fmt: FormatName | None = None,
@@ -109,19 +110,21 @@ def read_qrels(
 ) -> Qrels:
     """Load relevance judgements into memory: ``qrels[query_id][doc_id] -> relevance``.
 
+    ``source`` is any source accepted by :func:`iter_run`.
+
     Unlike runs, qrels are small and are needed for random access, so rows may come
     in any order. A repeated (query_id, doc_id) pair is an error: the first
     judgement is kept in non-strict mode. Error handling is the same as in
     :func:`iter_run`.
     """
-    fmt = fmt or detect_format(path)
+    fmt = fmt or detect_format(source)
     schema = schema or (QrelsSchema.trec() if fmt == "trec" else QrelsSchema())
-    name = str(path)
+    name = source_name(source)
     collector = errors if errors is not None else ErrorCollector()
     on_error = _raise if strict else collector.record
 
     records = iter_records(
-        path,
+        source,
         fmt,
         required=schema.required,
         trec_columns=QrelsSchema.TREC_COLUMNS,

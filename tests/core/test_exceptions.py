@@ -12,6 +12,7 @@ from ranklens.core.exceptions import (
     MalformedRowError,
     MetricNotFoundError,
     MissingColumnError,
+    MissingDependencyError,
     MissingQrelsError,
     ModelError,
     RankLensError,
@@ -34,6 +35,7 @@ INSTANCES: list[tuple[RankLensError, type[RankLensError]]] = [
     (MetricNotFoundError("ndgc", ["ndcg", "mrr"]), ConfigError),
     (DuplicateMetricError("ndcg"), ConfigError),
     (UnsupportedFormatError("run.xlsx", [".csv", ".jsonl"]), ConfigError),
+    (MissingDependencyError("pyarrow", "arrow", "reading parquet"), ConfigError),
     (UnsupportedModelError("torch.nn.Module", ["catboost", "lightgbm"]), ModelError),
     (InsufficientSampleError(12, 30), StatisticalError),
 ]
@@ -135,3 +137,11 @@ def test_unsupported_format_lists_extensions() -> None:
     message = str(UnsupportedFormatError("run.xlsx", [".csv", ".jsonl"]))
     assert "'run.xlsx'" in message
     assert ".csv, .jsonl (optionally .gz)" in message
+
+
+def test_missing_dependency_names_the_extra() -> None:
+    message = str(MissingDependencyError("pyarrow", "arrow", "reading parquet"))
+    assert message == (
+        "reading parquet requires the optional dependency 'pyarrow'; "
+        "install it with: pip install 'ranklens[arrow]'"
+    )

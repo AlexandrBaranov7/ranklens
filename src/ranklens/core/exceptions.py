@@ -17,6 +17,7 @@ __all__ = [
     "MalformedRowError",
     "MetricNotFoundError",
     "MissingColumnError",
+    "MissingDependencyError",
     "MissingQrelsError",
     "ModelError",
     "RankLensError",
@@ -197,6 +198,22 @@ class UnsupportedFormatError(ConfigError):
             f"cannot determine the format of {self.path!r}; "
             f"use one of the extensions {', '.join(self.supported)} (optionally .gz) "
             "or pass the format explicitly"
+        )
+
+
+class MissingDependencyError(ConfigError):
+    """An optional dependency required by a feature is not installed."""
+
+    def __init__(self, package: str, extra: str, feature: str) -> None:
+        super().__init__(package, extra, feature)
+        self.package = package
+        self.extra = extra
+        self.feature = feature
+
+    def __str__(self) -> str:
+        return (
+            f"{self.feature} requires the optional dependency {self.package!r}; "
+            f"install it with: pip install 'ranklens[{self.extra}]'"
         )
 
 
