@@ -1,4 +1,9 @@
-"""Average precision and reciprocal rank on binary relevance."""
+"""Average precision and reciprocal rank: per-query values on binary relevance.
+
+A metric is computed per query; its mean over queries is what gets reported:
+``AP`` per query -> MAP over queries (registry name ``map``),
+``RR`` per query -> MRR over queries (registry name ``mrr``).
+"""
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
