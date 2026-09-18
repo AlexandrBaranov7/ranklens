@@ -23,7 +23,7 @@ from ranklens.core.exceptions import (
     UnsupportedModelError,
 )
 from ranklens.core.protocols import Metric
-from ranklens.core.result import ErrorSummary
+from ranklens.core.result import ErrorSummary, Evaluation, MetricResult
 from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
 
 __all__ = [
@@ -33,10 +33,12 @@ __all__ = [
     "DuplicateDocumentError",
     "DuplicateMetricError",
     "ErrorSummary",
+    "Evaluation",
     "InsufficientSampleError",
     "MalformedRowError",
     "Metric",
     "MetricNotFoundError",
+    "MetricResult",
     "MetricSpecError",
     "MissingColumnError",
     "MissingDependencyError",

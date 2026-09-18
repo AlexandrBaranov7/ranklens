@@ -7,6 +7,8 @@
 
 ### Added
 
+- `ranklens eval --run RUN --qrels QRELS --metrics SPEC...`: таблица или JSON,
+  коды выхода 0/1/2/3; `ranklens.metrics.evaluate` и результаты `Evaluation`, `MetricResult`.
 - Метрики `ndcg`, `map`, `mrr` со значениями по умолчанию как в trec_eval;
   `ndcg(gain=exp)` — вариант LTR-библиотек, `map(rel=2)` — порог релевантности.
 - `ranklens.core.Metric` — протокол метрики; `ranklens.core.registry`: реестр метрик
