@@ -7,6 +7,8 @@
 
 ### Added
 
+- Метрики `ndcg`, `map`, `mrr` со значениями по умолчанию как в trec_eval;
+  `ndcg(gain=exp)` — вариант LTR-библиотек, `map(rel=2)` — порог релевантности.
 - `ranklens.core.Metric` — протокол метрики; `ranklens.core.registry`: реестр метрик
   и спецификации вида `ndcg(gain=exp)@10`; исключение `MetricSpecError`.
 - Чтение parquet и Feather, а также таблиц pandas, polars и pyarrow напрямую
