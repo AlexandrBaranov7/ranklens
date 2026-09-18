@@ -1,4 +1,12 @@
-"""Metric registry and metric specs such as ``ndcg@10`` or ``ndcg(gain=exp)@10``."""
+"""Metric registry: the single place that turns a metric given as a string into a metric.
+
+Everyone who receives a metric by name goes through a registry: the CLI
+(``--metrics ndcg@10``), ``ranklens.metrics.evaluate(runs, qrels, ["ndcg@10"])``, and
+later comparisons, reports and third-party metrics from entry points. Adding a metric
+is one ``register`` call; no consumer changes.
+
+A spec is ``name``, ``name@k`` or ``name(key=value,...)@k``, e.g. ``ndcg(gain=exp)@10``.
+"""
 
 import re
 from collections.abc import Callable, Mapping, Sequence
