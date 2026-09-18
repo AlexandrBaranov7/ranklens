@@ -7,8 +7,9 @@
 
 ### Added
 
-- `ranklens.io.ErrorCollector`: счётчик ошибок данных для non-strict чтения
-  с ограниченным числом примеров на тип ошибки.
+- `ranklens.io.ErrorCollector`: накопитель ошибок данных для non-strict чтения
+  (`record`, `snapshot`) с ограниченным числом примеров на тип ошибки;
+  `ranklens.core.ErrorSummary` — неизменяемый снимок для CLI и отчётов.
 - Исключения `UngroupedInputError`, `MissingColumnError`; предупреждения
   `RankLensWarning`, `SkippedRowsWarning`.
 - `ranklens.core`: `RankedList`, `QueryId`/`DocId`, `Qrels`, `SegmentKey`
