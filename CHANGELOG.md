@@ -7,6 +7,9 @@
 
 ### Added
 
+- Чтение parquet и Feather, а также таблиц pandas, polars и pyarrow напрямую
+  (`iter_run(df)`, `read_qrels(df)`) через Arrow; extras `arrow`.
+  Исключение `MissingDependencyError` для отсутствующих необязательных зависимостей.
 - `ranklens.io.read_qrels`: загрузка разметки в любом порядке строк с проверкой
   повторных оценок.
 - `ranklens.io.iter_run`: потоковое чтение прогона по одному `RankedList` на запрос;

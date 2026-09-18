@@ -45,13 +45,16 @@ def write(path: Path, text: str) -> Path:
         ("run.csv.gz", "csv"),
         ("dl19.qrels.bz2", "trec"),
         ("run.jsonl.xz", "jsonl"),
+        ("run.parquet", "parquet"),
+        ("run.feather", "feather"),
+        ("run.arrow", "feather"),
     ],
 )
 def test_detect_format(name: str, expected: str) -> None:
     assert detect_format(name) == expected
 
 
-@pytest.mark.parametrize("name", ["run.txt", "run", "run.gz", "run.parquet"])
+@pytest.mark.parametrize("name", ["run.txt", "run", "run.gz", "run.xlsx", "run.parquet.gz"])
 def test_detect_format_rejects_unknown(name: str) -> None:
     with pytest.raises(UnsupportedFormatError):
         detect_format(name)
@@ -135,6 +138,23 @@ def test_jsonl_normalizes_numbers_to_strings(tmp_path: Path) -> None:
     assert records[0].fields == {"query_id": "7", "doc_id": "d1", "score": "0.25"}
 
 
+def test_jsonl_integral_floats_match_integer_ids(tmp_path: Path) -> None:
+    path = write(tmp_path / "run.jsonl", '{"query_id": 1.0, "doc_id": "d1", "score": 2.5}\n')
+    records, _ = read(path, "jsonl")
+    assert records[0].fields == {"query_id": "1", "doc_id": "d1", "score": "2.5"}
+
+
+def test_detect_format_rejects_non_path_objects() -> None:
+    with pytest.raises(TypeError, match="Arrow-compatible table"):
+        detect_format(42)  # type: ignore[arg-type]
+
+
+def test_text_format_requires_a_path() -> None:
+    table = {"query_id": ["q1"]}
+    with pytest.raises(TypeError, match="format 'csv' reads files"):
+        list(iter_records(table, "csv", required=(), trec_columns=(), on_error=print))  # type: ignore[arg-type]
+
+
 def test_jsonl_ignores_unsupported_types_in_optional_fields(tmp_path: Path) -> None:
     path = write(tmp_path / "run.jsonl", '{"query_id": "q1", "doc_id": "d1", "meta": {"a": 1}}\n')
     records, _ = read(path, "jsonl")
@@ -148,7 +168,9 @@ def test_jsonl_ignores_unsupported_types_in_optional_fields(tmp_path: Path) -> N
         ('["q1", "d1"]', "expected a JSON object, got list"),
         ('{"query_id": "q1"}', "missing field 'doc_id'"),
         ('{"query_id": true, "doc_id": "d1"}', "field 'query_id' has unsupported type bool"),
-        ('{"query_id": null, "doc_id": "d1"}', "field 'query_id' has unsupported type NoneType"),
+        ('{"query_id": null, "doc_id": "d1"}', "field 'query_id' is empty"),
+        ('{"query_id": NaN, "doc_id": "d1"}', "field 'query_id' is empty"),
+        ('{"query_id": [1], "doc_id": "d1"}', "field 'query_id' has unsupported type list"),
     ],
 )
 def test_jsonl_invalid_rows(tmp_path: Path, line: str, reason: str) -> None:

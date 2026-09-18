@@ -1,7 +1,8 @@
-"""Line-level readers: turn a file into records of string fields.
+"""Row-level readers: turn a source into records of string fields.
 
-This layer knows about file formats but not about runs or qrels: it yields
+This layer knows about formats but not about runs or qrels: it yields
 ``Record`` objects and reports rows it cannot parse to ``on_error``.
+Text formats are read here; Arrow-backed sources live in :mod:`ranklens.io.arrow`.
 """
 
 import bz2
@@ -9,11 +10,12 @@ import csv
 import gzip
 import json
 import lzma
-from collections.abc import Callable, Collection, Iterator
+import math
+from collections.abc import Callable, Collection, Iterator, Mapping
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
-from typing import IO, Literal, get_args
+from typing import IO, Literal, Protocol, TypeAlias, get_args, runtime_checkable
 
 from ranklens.core.exceptions import (
     DataError,
@@ -22,10 +24,31 @@ from ranklens.core.exceptions import (
     UnsupportedFormatError,
 )
 
-__all__ = ["FormatName", "Record", "detect_format", "iter_records", "open_text"]
+__all__ = [
+    "ArrowStreamExportable",
+    "FormatName",
+    "Record",
+    "Source",
+    "detect_format",
+    "iter_records",
+    "open_text",
+    "source_name",
+]
 
-FormatName = Literal["csv", "tsv", "jsonl", "trec"]
+FormatName = Literal["csv", "tsv", "jsonl", "trec", "parquet", "feather", "arrow"]
 ErrorHandler = Callable[[DataError], None]
+
+
+@runtime_checkable
+class ArrowStreamExportable(Protocol):
+    """In-memory table exporting the Arrow C stream: pandas, polars, pyarrow, DuckDB."""
+
+    def __arrow_c_stream__(self, requested_schema: object | None = None) -> object: ...
+
+
+Source: TypeAlias = str | PathLike[str] | ArrowStreamExportable
+
+_ARROW_FORMATS = frozenset({"parquet", "feather", "arrow"})
 
 _EXTENSIONS: dict[str, FormatName] = {
     ".csv": "csv",
@@ -35,6 +58,9 @@ _EXTENSIONS: dict[str, FormatName] = {
     ".trec": "trec",
     ".run": "trec",
     ".qrels": "trec",
+    ".parquet": "parquet",
+    ".feather": "feather",
+    ".arrow": "feather",
 }
 _COMPRESSION = frozenset({".gz", ".bz2", ".xz"})
 
@@ -48,14 +74,33 @@ class Record:
     fields: dict[str, str]
 
 
-def detect_format(path: str | PathLike[str]) -> FormatName:
-    """Format by file extension; a compression suffix (``.gz``, ``.bz2``, ``.xz``) is skipped."""
-    suffixes = [s.lower() for s in Path(path).suffixes]
-    if suffixes and suffixes[-1] in _COMPRESSION:
+def detect_format(source: Source) -> FormatName:
+    """Format of a file by extension, or ``"arrow"`` for an in-memory table.
+
+    A compression suffix (``.gz``, ``.bz2``, ``.xz``) is skipped for text formats;
+    parquet and Feather compress internally.
+    """
+    if not isinstance(source, str | PathLike):
+        if isinstance(source, ArrowStreamExportable):
+            return "arrow"
+        raise TypeError(
+            f"expected a path or an Arrow-compatible table, got {type(source).__name__}"
+        )
+    suffixes = [s.lower() for s in Path(source).suffixes]
+    compressed = bool(suffixes) and suffixes[-1] in _COMPRESSION
+    if compressed:
         suffixes.pop()
-    if suffixes and suffixes[-1] in _EXTENSIONS:
-        return _EXTENSIONS[suffixes[-1]]
-    raise UnsupportedFormatError(str(path), _EXTENSIONS)
+    fmt = _EXTENSIONS.get(suffixes[-1]) if suffixes else None
+    if fmt is None or (compressed and fmt in _ARROW_FORMATS):
+        raise UnsupportedFormatError(str(source), _EXTENSIONS)
+    return fmt
+
+
+def source_name(source: Source) -> str:
+    """Name used in error messages: the path, or the type of an in-memory table."""
+    if isinstance(source, str | PathLike):
+        return str(source)
+    return f"<{type(source).__name__}>"
 
 
 def open_text(path: str | PathLike[str]) -> IO[str]:
@@ -72,24 +117,33 @@ def open_text(path: str | PathLike[str]) -> IO[str]:
 
 
 def iter_records(
-    path: str | PathLike[str],
+    source: Source,
     fmt: FormatName,
     *,
     required: Collection[str],
     trec_columns: tuple[str, ...],
     on_error: ErrorHandler,
 ) -> Iterator[Record]:
-    """Yield records of ``path``; unparsable rows go to ``on_error`` and are skipped.
+    """Yield records of ``source``; unparsable rows go to ``on_error`` and are skipped.
 
-    ``required`` is checked against the csv/tsv header up front
+    ``required`` is checked against the header or table schema up front
     (:class:`MissingColumnError` is always raised); for jsonl it is checked per row.
+    Line numbers of Arrow sources are 1-based row numbers.
     ``trec_columns`` names the whitespace-separated columns of the TREC format;
     ``required`` must be a subset of them.
     """
     if fmt not in get_args(FormatName):
         raise ValueError(f"unknown format {fmt!r}")
-    name = str(path)
-    with open_text(path) as fh:
+    name = source_name(source)
+    if fmt in _ARROW_FORMATS:
+        # imported here so that text formats never touch the optional pyarrow
+        from ranklens.io.arrow import iter_arrow_records
+
+        yield from iter_arrow_records(source, fmt, name, required, on_error)
+        return
+    if not isinstance(source, str | PathLike):
+        raise TypeError(f"format {fmt!r} reads files, got {type(source).__name__}")
+    with open_text(source) as fh:
         if fmt in ("csv", "tsv"):
             yield from _iter_delimited(fh, "," if fmt == "csv" else "\t", name, required, on_error)
         elif fmt == "jsonl":
@@ -140,27 +194,49 @@ def _iter_jsonl(
             reason = f"expected a JSON object, got {type(obj).__name__}"
             on_error(MalformedRowError(line_no, raw, reason, path=name))
             continue
-        fields, reason = _json_fields(obj, required)
+        fields, reason = scalar_fields(obj, required)
         if reason:
             on_error(MalformedRowError(line_no, raw, reason, path=name))
             continue
         yield Record(line_no, raw, fields)
 
 
-def _json_fields(obj: dict[str, object], required: Collection[str]) -> tuple[dict[str, str], str]:
+def scalar_fields(
+    values: Mapping[str, object], required: Collection[str]
+) -> tuple[dict[str, str], str]:
+    """String fields of a typed row (jsonl, Arrow) and the reason it is invalid, if any.
+
+    Values of optional fields that are not scalars are dropped.
+    """
     for key in required:
-        if key not in obj:
+        if key not in values:
             return {}, f"missing field {key!r}"
     fields: dict[str, str] = {}
-    for key, value in obj.items():
-        # bool is an int subclass, but True as an id or score is a data error
-        if isinstance(value, str):
-            fields[key] = value
-        elif isinstance(value, int | float) and not isinstance(value, bool):
-            fields[key] = str(value)
+    for key, value in values.items():
+        text = _scalar_text(value)
+        if text is not None:
+            fields[key] = text
         elif key in required:
+            if value is None or (isinstance(value, float) and math.isnan(value)):
+                return {}, f"field {key!r} is empty"
             return {}, f"field {key!r} has unsupported type {type(value).__name__}"
     return fields, ""
+
+
+def _scalar_text(value: object) -> str | None:
+    # bool is an int subclass, but True as an id or score is a data error
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        if math.isnan(value):
+            return None
+        # pandas turns integer ids with gaps into floats: 1.0 must still match "1"
+        return str(int(value)) if value.is_integer() else repr(value)
+    return None
 
 
 def _iter_trec(

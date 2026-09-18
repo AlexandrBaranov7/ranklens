@@ -27,6 +27,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+arrow = ["pyarrow>=15"]
 viz = ["plotly>=5.18"]
 models = ["catboost", "lightgbm", "xgboost", "scikit-learn"]
 
@@ -47,6 +48,9 @@ dev = [
   "mypy>=1.11",
   "ruff>=0.6",
   "pre-commit>=3.7",
+  "pyarrow>=15",
+  "polars>=1",
+  "pandas-stubs",
 ]
 
 [tool.poetry]
@@ -83,6 +87,11 @@ python_version = "3.11"
 files = ["src", "tests"]
 warn_unreachable = true
 enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+
+# pyarrow ships no type information; its use is confined to ranklens.io.arrow
+[[tool.mypy.overrides]]
+module = ["pyarrow", "pyarrow.*"]
+ignore_missing_imports = true
 
 # --- pytest / coverage --------------------------------------------------
 
