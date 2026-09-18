@@ -4,9 +4,11 @@ This layer knows about file formats but not about runs or qrels: it yields
 ``Record`` objects and reports rows it cannot parse to ``on_error``.
 """
 
+import bz2
 import csv
 import gzip
 import json
+import lzma
 from collections.abc import Callable, Collection, Iterator
 from dataclasses import dataclass
 from os import PathLike
@@ -34,6 +36,7 @@ _EXTENSIONS: dict[str, FormatName] = {
     ".run": "trec",
     ".qrels": "trec",
 }
+_COMPRESSION = frozenset({".gz", ".bz2", ".xz"})
 
 
 @dataclass(slots=True)
@@ -46,9 +49,9 @@ class Record:
 
 
 def detect_format(path: str | PathLike[str]) -> FormatName:
-    """Format by file extension; ``.gz`` is looked through."""
+    """Format by file extension; a compression suffix (``.gz``, ``.bz2``, ``.xz``) is skipped."""
     suffixes = [s.lower() for s in Path(path).suffixes]
-    if suffixes and suffixes[-1] == ".gz":
+    if suffixes and suffixes[-1] in _COMPRESSION:
         suffixes.pop()
     if suffixes and suffixes[-1] in _EXTENSIONS:
         return _EXTENSIONS[suffixes[-1]]
@@ -56,10 +59,15 @@ def detect_format(path: str | PathLike[str]) -> FormatName:
 
 
 def open_text(path: str | PathLike[str]) -> IO[str]:
-    """Open a text file for reading, transparently decompressing ``.gz``."""
+    """Open a text file for reading, transparently decompressing it by extension."""
     # utf-8-sig drops a BOM written by spreadsheet exports; newline="" is required by csv
-    if Path(path).suffix.lower() == ".gz":
+    suffix = Path(path).suffix.lower()
+    if suffix == ".gz":
         return gzip.open(path, "rt", encoding="utf-8-sig", newline="")
+    if suffix == ".bz2":
+        return bz2.open(path, "rt", encoding="utf-8-sig", newline="")
+    if suffix == ".xz":
+        return lzma.open(path, "rt", encoding="utf-8-sig", newline="")
     return Path(path).open(encoding="utf-8-sig", newline="")
 
 

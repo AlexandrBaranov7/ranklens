@@ -1,5 +1,9 @@
+import bz2
 import gzip
+import lzma
+from collections.abc import Callable
 from pathlib import Path
+from typing import IO
 
 import pytest
 
@@ -39,6 +43,8 @@ def write(path: Path, text: str) -> Path:
         ("model.v2.run", "trec"),
         ("dl19.qrels", "trec"),
         ("run.csv.gz", "csv"),
+        ("dl19.qrels.bz2", "trec"),
+        ("run.jsonl.xz", "jsonl"),
     ],
 )
 def test_detect_format(name: str, expected: str) -> None:
@@ -104,9 +110,15 @@ def test_empty_csv_yields_nothing(tmp_path: Path) -> None:
     assert read(write(tmp_path / "run.csv", ""), "csv") == ([], [])
 
 
-def test_gzip_is_decompressed(tmp_path: Path) -> None:
-    path = tmp_path / "run.csv.gz"
-    with gzip.open(path, "wt", encoding="utf-8") as fh:
+@pytest.mark.parametrize(
+    ("suffix", "opener"),
+    [(".gz", gzip.open), (".bz2", bz2.open), (".xz", lzma.open)],
+)
+def test_compressed_files_are_decompressed(
+    tmp_path: Path, suffix: str, opener: Callable[..., IO[str]]
+) -> None:
+    path = tmp_path / f"run.csv{suffix}"
+    with opener(path, "wt", encoding="utf-8") as fh:
         fh.write("query_id,doc_id\nq1,d1\n")
     records, _ = read(path, "csv")
     assert records[0].fields == {"query_id": "q1", "doc_id": "d1"}
