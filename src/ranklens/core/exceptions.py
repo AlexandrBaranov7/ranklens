@@ -16,6 +16,7 @@ __all__ = [
     "InsufficientSampleError",
     "MalformedRowError",
     "MetricNotFoundError",
+    "MetricSpecError",
     "MissingColumnError",
     "MissingDependencyError",
     "MissingQrelsError",
@@ -168,6 +169,18 @@ class MetricNotFoundError(ConfigError):
             message += f"; did you mean {close[0]!r}?"
         listing = ", ".join(self.available) if self.available else "none registered"
         return f"{message} Available: {listing}"
+
+
+class MetricSpecError(ConfigError):
+    """A metric spec cannot be parsed or has invalid parameters."""
+
+    def __init__(self, spec: str, reason: str) -> None:
+        super().__init__(spec, reason)
+        self.spec = spec
+        self.reason = reason
+
+    def __str__(self) -> str:
+        return f"invalid metric spec {self.spec!r}: {self.reason}"
 
 
 class DuplicateMetricError(ConfigError):

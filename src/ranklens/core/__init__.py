@@ -8,6 +8,7 @@ from ranklens.core.exceptions import (
     InsufficientSampleError,
     MalformedRowError,
     MetricNotFoundError,
+    MetricSpecError,
     MissingColumnError,
     MissingDependencyError,
     MissingQrelsError,
@@ -21,6 +22,7 @@ from ranklens.core.exceptions import (
     UnsupportedFormatError,
     UnsupportedModelError,
 )
+from ranklens.core.protocols import Metric
 from ranklens.core.result import ErrorSummary
 from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
 
@@ -33,7 +35,9 @@ __all__ = [
     "ErrorSummary",
     "InsufficientSampleError",
     "MalformedRowError",
+    "Metric",
     "MetricNotFoundError",
+    "MetricSpecError",
     "MissingColumnError",
     "MissingDependencyError",
     "MissingQrelsError",
