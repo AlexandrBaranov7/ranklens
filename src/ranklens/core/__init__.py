@@ -19,6 +19,7 @@ from ranklens.core.exceptions import (
     UnsortedInputError,
     UnsupportedModelError,
 )
+from ranklens.core.result import ErrorSummary
 from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "DocId",
     "DuplicateDocumentError",
     "DuplicateMetricError",
+    "ErrorSummary",
     "InsufficientSampleError",
     "MalformedRowError",
     "MetricNotFoundError",

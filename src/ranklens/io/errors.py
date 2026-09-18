@@ -3,52 +3,36 @@
 from collections import Counter
 
 from ranklens.core.exceptions import DataError
+from ranklens.core.result import ErrorSummary
 
 __all__ = ["ErrorCollector"]
 
 
 class ErrorCollector:
-    """Counts recoverable data errors and keeps the first few of each type.
+    """Accumulates recoverable data errors; read the result with :meth:`snapshot`.
 
-    Memory is bounded: at most ``max_examples`` errors are stored per error type,
+    Memory is bounded: at most ``max_examples`` messages are kept per error type,
     no matter how many rows are skipped.
     """
 
     def __init__(self, max_examples: int = 5) -> None:
         if max_examples < 0:
             raise ValueError(f"max_examples must be >= 0, got {max_examples}")
-        self.max_examples = max_examples
+        self._max_examples = max_examples
         self._counts: Counter[str] = Counter()
-        self._examples: dict[str, list[DataError]] = {}
+        self._examples: dict[str, list[str]] = {}
 
     def record(self, error: DataError) -> None:
         kind = type(error).__name__
         self._counts[kind] += 1
         examples = self._examples.setdefault(kind, [])
-        if len(examples) < self.max_examples:
-            examples.append(error)
+        if len(examples) < self._max_examples:
+            examples.append(str(error))
 
-    @property
-    def total(self) -> int:
-        return self._counts.total()
-
-    @property
-    def counts(self) -> dict[str, int]:
-        """Number of errors per error type, most frequent first."""
-        return dict(self._counts.most_common())
-
-    @property
-    def examples(self) -> dict[str, tuple[DataError, ...]]:
-        """First errors of each type, in the order they were recorded."""
-        return {kind: tuple(errors) for kind, errors in self._examples.items() if errors}
-
-    def summary(self) -> str:
-        """Human-readable summary for logs and reports."""
-        if not self.total:
-            return "no data errors"
-        counts = ", ".join(f"{kind}: {n}" for kind, n in self.counts.items())
-        lines = [f"skipped {self.total} invalid rows ({counts})"]
-        for kind, errors in self.examples.items():
-            lines.append(f"  {kind}, first {len(errors)}:")
-            lines.extend(f"    - {error}" for error in errors)
-        return "\n".join(lines)
+    def snapshot(self) -> ErrorSummary:
+        """Immutable summary of everything recorded so far."""
+        return ErrorSummary(
+            total=self._counts.total(),
+            counts=tuple(self._counts.most_common()),
+            examples=tuple((kind, tuple(msgs)) for kind, msgs in self._examples.items() if msgs),
+        )

@@ -1,6 +1,8 @@
+import dataclasses
+
 import pytest
 
-from ranklens.core import DuplicateDocumentError, MalformedRowError
+from ranklens.core import DuplicateDocumentError, ErrorSummary, MalformedRowError
 from ranklens.io import ErrorCollector
 
 
@@ -9,11 +11,10 @@ def malformed(line_no: int) -> MalformedRowError:
 
 
 def test_empty_collector() -> None:
-    errors = ErrorCollector()
-    assert errors.total == 0
-    assert errors.counts == {}
-    assert errors.examples == {}
-    assert errors.summary() == "no data errors"
+    summary = ErrorCollector().snapshot()
+    assert summary == ErrorSummary()
+    assert summary.total == 0
+    assert str(summary) == "no data errors"
 
 
 def test_counts_by_type_most_frequent_first() -> None:
@@ -21,8 +22,9 @@ def test_counts_by_type_most_frequent_first() -> None:
     errors.record(DuplicateDocumentError("q1", "d1"))
     for line_no in range(3):
         errors.record(malformed(line_no))
-    assert errors.total == 4
-    assert list(errors.counts.items()) == [("MalformedRowError", 3), ("DuplicateDocumentError", 1)]
+    summary = errors.snapshot()
+    assert summary.total == 4
+    assert summary.counts == (("MalformedRowError", 3), ("DuplicateDocumentError", 1))
 
 
 def test_examples_are_capped_per_type() -> None:
@@ -30,17 +32,16 @@ def test_examples_are_capped_per_type() -> None:
     for line_no in range(10):
         errors.record(malformed(line_no))
     errors.record(DuplicateDocumentError("q1", "d1"))
-    examples = errors.examples
-    assert [str(e) for e in examples["MalformedRowError"]] == [str(malformed(0)), str(malformed(1))]
+    examples = dict(errors.snapshot().examples)
+    assert examples["MalformedRowError"] == (str(malformed(0)), str(malformed(1)))
     assert len(examples["DuplicateDocumentError"]) == 1
-    assert errors.counts["MalformedRowError"] == 10
+    assert dict(errors.snapshot().counts)["MalformedRowError"] == 10
 
 
 def test_zero_examples_keeps_only_counts() -> None:
     errors = ErrorCollector(max_examples=0)
     errors.record(malformed(1))
-    assert errors.total == 1
-    assert errors.examples == {}
+    assert errors.snapshot() == ErrorSummary(total=1, counts=(("MalformedRowError", 1),))
 
 
 def test_rejects_negative_max_examples() -> None:
@@ -48,19 +49,23 @@ def test_rejects_negative_max_examples() -> None:
         ErrorCollector(max_examples=-1)
 
 
-def test_summary_lists_counts_and_examples() -> None:
+def test_snapshot_is_immutable_and_detached() -> None:
+    errors = ErrorCollector()
+    errors.record(malformed(1))
+    summary = errors.snapshot()
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        summary.total = 0  # type: ignore[misc]
+    errors.record(malformed(2))
+    assert summary.total == 1
+    assert errors.snapshot().total == 2
+
+
+def test_summary_text() -> None:
     errors = ErrorCollector(max_examples=1)
     errors.record(malformed(7))
     errors.record(malformed(9))
-    assert errors.summary() == (
+    assert str(errors.snapshot()) == (
         "skipped 2 invalid rows (MalformedRowError: 2)\n"
         "  MalformedRowError, first 1:\n"
         "    - run.csv:7: bad score: 'raw'"
     )
-
-
-def test_returned_views_do_not_leak_internal_state() -> None:
-    errors = ErrorCollector()
-    errors.record(malformed(1))
-    errors.counts["MalformedRowError"] = 100
-    assert errors.total == 1
