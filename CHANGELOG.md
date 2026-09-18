@@ -7,6 +7,8 @@
 
 ### Added
 
+- `ranklens.core.Metric` — протокол метрики; `ranklens.core.registry`: реестр метрик
+  и спецификации вида `ndcg(gain=exp)@10`; исключение `MetricSpecError`.
 - Чтение parquet и Feather, а также таблиц pandas, polars и pyarrow напрямую
   (`iter_run(df)`, `read_qrels(df)`) через Arrow; extras `arrow`.
   Исключение `MissingDependencyError` для отсутствующих необязательных зависимостей.
