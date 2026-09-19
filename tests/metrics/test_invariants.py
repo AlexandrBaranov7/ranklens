@@ -1,5 +1,8 @@
 """Level 2: properties that must hold for any input (Hypothesis).
 
+ERR and RBP never reach 1 (even a perfect document leaves a chance to keep looking),
+so they are not in the ideal-ranking test.
+
 Each invariant was checked on paper first; NDCG@k is deliberately *not* claimed
 to be monotone in k (see test_exact.py for the counterexample).
 """
@@ -11,7 +14,7 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from ranklens.core import DocId, Metric
-from ranklens.metrics import AP, NDCG, RR
+from ranklens.metrics import AP, ERR, NDCG, RBP, RR
 from ranklens.metrics.base import dcg
 
 METRICS: dict[str, Metric] = {
@@ -20,6 +23,9 @@ METRICS: dict[str, Metric] = {
     "map": AP(),
     "map_rel2": AP(rel=2),
     "mrr": RR(),
+    "err": ERR(max_rel=3),
+    "rbp": RBP(),
+    "rbp_graded": RBP(p=0.5, max_rel=3),
 }
 metric_names = st.sampled_from(sorted(METRICS))
 cutoffs = st.one_of(st.none(), st.integers(min_value=1, max_value=12))

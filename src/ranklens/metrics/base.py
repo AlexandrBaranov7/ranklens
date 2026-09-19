@@ -5,7 +5,7 @@ from collections.abc import Callable, Iterable, Sequence
 
 from ranklens.core.types import DocId
 
-__all__ = ["GainFunction", "cutoff", "dcg", "gain_function", "relevance_level"]
+__all__ = ["GainFunction", "cutoff", "dcg", "gain_function", "positive", "probability"]
 
 GainFunction = Callable[[float], float]
 
@@ -32,11 +32,21 @@ def dcg(gains: Iterable[float]) -> float:
     return sum(g / math.log2(rank + 1) for rank, g in enumerate(gains, start=1))
 
 
-def relevance_level(rel: object) -> float:
-    """Validate the threshold from which a judgement counts as relevant."""
-    if isinstance(rel, bool) or not isinstance(rel, int | float) or not rel > 0:
-        raise ValueError(f"rel must be a positive number, got {rel!r}")
-    return float(rel)
+# parameters come from spec strings, so they are checked at runtime whatever the annotation says
+
+
+def positive(name: str, value: object) -> float:
+    """Validate a parameter that must be a positive number."""
+    if isinstance(value, bool) or not isinstance(value, int | float) or not value > 0:
+        raise ValueError(f"{name} must be a positive number, got {value!r}")
+    return float(value)
+
+
+def probability(name: str, value: object) -> float:
+    """Validate a parameter that must lie strictly between 0 and 1."""
+    if isinstance(value, bool) or not isinstance(value, int | float) or not 0 < value < 1:
+        raise ValueError(f"{name} must be in (0, 1), got {value!r}")
+    return float(value)
 
 
 def _linear(relevance: float) -> float:

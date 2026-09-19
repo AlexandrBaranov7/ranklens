@@ -3,7 +3,7 @@
 import pytest
 
 from ranklens.core import DocId, MetricNotFoundError, MetricSpecError
-from ranklens.metrics import AP, NDCG, RR, resolve
+from ranklens.metrics import AP, ERR, NDCG, RBP, RR, resolve
 from ranklens.metrics.base import dcg
 
 
@@ -78,8 +78,41 @@ def test_rr() -> None:
     assert RR(rel=2)(ABC, judged(a=1, b=2), None) == 0.5
 
 
-@pytest.mark.parametrize("metric", [NDCG(), NDCG(gain="exp"), AP(), RR()])
-def test_no_relevant_documents_scores_zero(metric: NDCG | AP | RR) -> None:
+def test_err_cascade() -> None:
+    # R = (2**g - 1) / 2**3 = 7/8, 3/8, 7/8
+    # 7/8 + (1/2)(1/8)(3/8) + (1/3)(1/8)(5/8)(7/8)
+    assert ERR(max_rel=3)(ABC, GRADED, None) == pytest.approx(0.921224, abs=1e-6)
+
+
+def test_err_default_scale_is_gdeval() -> None:
+    # max_rel 4: a single grade-4 document gives R = 15/16
+    assert ERR()(ids("a"), judged(a=4), None) == pytest.approx(15 / 16)
+
+
+def test_err_clips_grades_above_the_scale() -> None:
+    assert ERR(max_rel=2)(ids("a"), judged(a=5), None) == ERR(max_rel=2)(
+        ids("a"), judged(a=2), None
+    )
+
+
+def test_rbp_binary() -> None:
+    # relevant at ranks 1 and 3: (1 - 0.5) * (1 + 0.5**2)
+    assert RBP(p=0.5)(ABC, judged(a=1, b=0, c=2), None) == pytest.approx(0.625)
+
+
+def test_rbp_graded_is_normalized_by_the_scale() -> None:
+    # (1 - 0.5) * (3/3 + (2/3) * 0.5 + (3/3) * 0.25)
+    assert RBP(p=0.5, max_rel=3)(ABC, GRADED, None) == pytest.approx(0.791667, abs=1e-6)
+
+
+def test_rbp_at_cutoff_is_a_lower_bound() -> None:
+    assert RBP(p=0.5)(ABC, judged(c=1), 2) == 0.0
+
+
+@pytest.mark.parametrize(
+    "metric", [NDCG(), NDCG(gain="exp"), AP(), RR(), ERR(), RBP(), RBP(max_rel=3)]
+)
+def test_no_relevant_documents_scores_zero(metric: NDCG | AP | RR | ERR | RBP) -> None:
     assert metric(ABC, judged(a=0, b=-1), 3) == 0.0
     assert metric(ABC, {}, 3) == 0.0
 
@@ -100,9 +133,12 @@ def test_empty_ranking_scores_zero(metric: NDCG | AP | RR) -> None:
         ("map", AP()),
         ("map(rel=2)@100", AP(rel=2)),
         ("mrr@10", RR()),
+        ("err(max_rel=3)@20", ERR(max_rel=3)),
+        ("rbp(p=0.95)", RBP(p=0.95)),
+        ("rbp(max_rel=4,p=0.5)", RBP(p=0.5, max_rel=4)),
     ],
 )
-def test_resolve_builtins(spec: str, metric: NDCG | AP | RR) -> None:
+def test_resolve_builtins(spec: str, metric: NDCG | AP | RR | ERR | RBP) -> None:
     assert resolve(spec).metric == metric
 
 
@@ -112,6 +148,9 @@ def test_resolve_builtins(spec: str, metric: NDCG | AP | RR) -> None:
         ("ndcg(gain=log)", "gain must be 'linear' or 'exp'"),
         ("map(rel=0)", "rel must be a positive number"),
         ("mrr(rel=high)", "rel must be a positive number"),
+        ("rbp(p=1)", r"p must be in \(0, 1\)"),
+        ("rbp(p=0)", r"p must be in \(0, 1\)"),
+        ("err(max_rel=-1)", "max_rel must be a positive number"),
     ],
 )
 def test_resolve_rejects_invalid_parameters(spec: str, reason: str) -> None:

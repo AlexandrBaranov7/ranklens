@@ -1,6 +1,7 @@
 """Registry of the metrics shipped with ranklens."""
 
 from ranklens.core.registry import BoundMetric, MetricSpec, Registry
+from ranklens.metrics.err_rbp import ERR, RBP
 from ranklens.metrics.map_mrr import AP, RR
 from ranklens.metrics.ndcg import NDCG
 
@@ -11,6 +12,8 @@ registry = Registry()
 registry.register("ndcg", NDCG)
 registry.register("map", AP)
 registry.register("mrr", RR)
+registry.register("err", ERR)
+registry.register("rbp", RBP)
 
 
 def resolve(spec: str | MetricSpec) -> BoundMetric:
