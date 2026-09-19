@@ -7,7 +7,8 @@ from ranklens.metrics.ndcg import NDCG
 
 __all__ = ["registry", "resolve"]
 
-registry = Registry()
+# third-party metrics join through the "ranklens.metrics" entry point group
+registry = Registry(entry_point_group="ranklens.metrics")
 # names are those of the reported means: "map" is the mean of AP, "mrr" the mean of RR
 registry.register("ndcg", NDCG)
 registry.register("map", AP)

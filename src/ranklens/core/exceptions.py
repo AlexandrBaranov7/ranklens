@@ -21,6 +21,7 @@ __all__ = [
     "MissingDependencyError",
     "MissingQrelsError",
     "ModelError",
+    "PluginWarning",
     "RankLensError",
     "RankLensWarning",
     "SkippedRowsWarning",
@@ -285,3 +286,7 @@ class RankLensWarning(UserWarning):
 
 class SkippedRowsWarning(RankLensWarning):
     """Invalid input rows were skipped in non-strict mode."""
+
+
+class PluginWarning(RankLensWarning):
+    """A third-party plugin could not be loaded and was skipped."""

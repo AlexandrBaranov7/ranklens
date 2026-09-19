@@ -7,6 +7,8 @@
 
 ### Added
 
+- Плагины метрик через entry points `ranklens.metrics`, предупреждение `PluginWarning`,
+  команда `ranklens metrics`; how-to `docs/howto/custom-metric.md`.
 - Векторизованный расчёт метрик пачками (`BatchMetric`, `evaluate(batch_size=...)`):
   в 7.5 раза быстрее поштучного на 2 000 запросах; бенчмарки и неблокирующая задача `bench` в CI.
 - `iter_run(order="score")`: сортировка по score с разрешением равенств как в trec_eval;

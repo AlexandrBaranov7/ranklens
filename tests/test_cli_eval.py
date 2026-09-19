@@ -123,3 +123,8 @@ def test_installed_entry_point() -> None:
         check=True,
     )
     assert "ndcg@10" in proc.stdout
+
+
+def test_metrics_command_lists_builtins(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["metrics"]) == EXIT_OK
+    assert capsys.readouterr().out.split() == ["err", "map", "mrr", "ndcg", "rbp"]

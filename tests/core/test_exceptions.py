@@ -16,6 +16,7 @@ from ranklens.core.exceptions import (
     MissingDependencyError,
     MissingQrelsError,
     ModelError,
+    PluginWarning,
     RankLensError,
     RankLensWarning,
     SkippedRowsWarning,
@@ -62,7 +63,7 @@ def test_pickle_round_trip(error: RankLensError, group: type[RankLensError]) -> 
 def test_all_public_errors_are_covered() -> None:
     covered = {type(e) for e, _ in INSTANCES}
     groups = {RankLensError, DataError, ConfigError, ModelError, StatisticalError}
-    warnings = {RankLensWarning, SkippedRowsWarning}
+    warnings = {RankLensWarning, SkippedRowsWarning, PluginWarning}
     public = {getattr(exc, name) for name in exc.__all__}
     assert public - groups - warnings == covered
 

@@ -15,7 +15,7 @@ from ranklens import __version__
 from ranklens.core.exceptions import DataError, RankLensError
 from ranklens.core.result import ErrorSummary, Evaluation
 from ranklens.io import ErrorCollector, iter_run, read_qrels
-from ranklens.metrics import evaluate, resolve
+from ranklens.metrics import evaluate, registry, resolve
 
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_DATA = 0, 1, 2, 3
 
@@ -49,6 +49,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_eval.add_argument("--format", choices=["table", "json"], default="table")
     run_eval.set_defaults(handler=_run_eval)
+
+    list_metrics = commands.add_parser(
+        "metrics",
+        help="list available metrics",
+        description="List metric names usable in specs, including installed plugins.",
+    )
+    list_metrics.set_defaults(handler=_list_metrics)
     return parser
 
 
@@ -70,6 +77,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _fail(exc: Exception, code: int) -> int:
     print(f"ranklens: error: {exc}", file=sys.stderr)
     return code
+
+
+def _list_metrics(args: argparse.Namespace) -> int:
+    print("\n".join(registry.names()))
+    return EXIT_OK
 
 
 def _run_eval(args: argparse.Namespace) -> int:
