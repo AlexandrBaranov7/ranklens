@@ -7,6 +7,7 @@
 
 ### Added
 
+- `ranklens.metrics.rbo`: rank-biased overlap двух ранжирований без разметки.
 - Метрики `err` (шкала `max_rel`, по умолчанию 4, как в gdeval) и `rbp` (параметр `p`,
   бинарная или градуированная релевантность через `max_rel`).
 - `ranklens eval --run RUN --qrels QRELS --metrics SPEC...`: таблица или JSON,

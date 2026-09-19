@@ -5,5 +5,6 @@ from ranklens.metrics.err_rbp import ERR, RBP
 from ranklens.metrics.evaluation import evaluate
 from ranklens.metrics.map_mrr import AP, RR
 from ranklens.metrics.ndcg import NDCG
+from ranklens.metrics.rbo import rbo
 
-__all__ = ["AP", "ERR", "NDCG", "RBP", "RR", "evaluate", "registry", "resolve"]
+__all__ = ["AP", "ERR", "NDCG", "RBP", "RR", "evaluate", "rbo", "registry", "resolve"]
