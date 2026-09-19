@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from ranklens.core.types import DocId
-from ranklens.metrics.base import cutoff, relevance_level
+from ranklens.metrics.base import cutoff, positive
 
 __all__ = ["AP", "RR"]
 
@@ -26,7 +26,7 @@ class AP:
     rel: float = 1
 
     def __post_init__(self) -> None:
-        relevance_level(self.rel)
+        positive("rel", self.rel)
 
     def __call__(
         self, ranked: Sequence[DocId], judgements: Mapping[DocId, float], k: int | None
@@ -52,7 +52,7 @@ class RR:
     rel: float = 1
 
     def __post_init__(self) -> None:
-        relevance_level(self.rel)
+        positive("rel", self.rel)
 
     def __call__(
         self, ranked: Sequence[DocId], judgements: Mapping[DocId, float], k: int | None
