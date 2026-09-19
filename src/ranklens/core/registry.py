@@ -3,16 +3,24 @@
 Everyone who receives a metric by name goes through a registry: the CLI
 (``--metrics ndcg@10``), ``ranklens.metrics.evaluate(runs, qrels, ["ndcg@10"])``, and
 later comparisons, reports and third-party metrics from entry points. Adding a metric
-is one ``register`` call; no consumer changes.
+is one ``register`` call; no consumer changes. Third-party packages add metrics through
+the ``ranklens.metrics`` entry point group, loaded on first use (see ``docs/howto``).
 
 A spec is ``name``, ``name@k`` or ``name(key=value,...)@k``, e.g. ``ndcg(gain=exp)@10``.
 """
 
 import re
+import warnings
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from importlib.metadata import entry_points
 
-from ranklens.core.exceptions import DuplicateMetricError, MetricNotFoundError, MetricSpecError
+from ranklens.core.exceptions import (
+    DuplicateMetricError,
+    MetricNotFoundError,
+    MetricSpecError,
+    PluginWarning,
+)
 from ranklens.core.protocols import Metric
 from ranklens.core.types import DocId
 
@@ -97,10 +105,18 @@ class BoundMetric:
 
 
 class Registry:
-    """Name -> metric factory. ``resolve`` turns a spec string into a ready metric."""
+    """Name -> metric factory. ``resolve`` turns a spec string into a ready metric.
 
-    def __init__(self) -> None:
+    With ``entry_point_group``, factories published by installed packages under that
+    group are added on first :meth:`names` or :meth:`resolve`. A plugin that fails to
+    load or clashes with an existing name is skipped with a :class:`PluginWarning`:
+    one broken package must not break every command.
+    """
+
+    def __init__(self, entry_point_group: str | None = None) -> None:
         self._factories: dict[str, MetricFactory] = {}
+        self._group = entry_point_group
+        self._plugins_loaded = False
 
     def register(self, name: str, factory: MetricFactory) -> None:
         """Register ``factory`` under a lowercase ``name``; a metric class is a factory."""
@@ -120,9 +136,11 @@ class Registry:
         return decorate
 
     def names(self) -> tuple[str, ...]:
+        self._load_plugins()
         return tuple(sorted(self._factories))
 
     def resolve(self, spec: str | MetricSpec) -> BoundMetric:
+        self._load_plugins()
         parsed = parse_spec(spec) if isinstance(spec, str) else spec
         factory = self._factories.get(parsed.name)
         if factory is None:
@@ -132,3 +150,31 @@ class Registry:
         except (TypeError, ValueError) as exc:
             raise MetricSpecError(str(parsed), str(exc)) from exc
         return BoundMetric(parsed, metric)
+
+    def _load_plugins(self) -> None:
+        if self._plugins_loaded or self._group is None:
+            return
+        self._plugins_loaded = True
+        for entry_point in entry_points(group=self._group):
+            source = f"{entry_point.value} (package {_package(entry_point)})"
+            if entry_point.name in self._factories:
+                _warn(
+                    f"metric plugin {entry_point.name!r} from {source} is skipped: "
+                    "a metric with this name is already registered"
+                )
+                continue
+            try:
+                factory = entry_point.load()
+                self.register(entry_point.name, factory)
+            # plugin code is arbitrary: any failure is reported and the plugin is skipped
+            except Exception as exc:
+                _warn(f"metric plugin {entry_point.name!r} from {source} failed to load: {exc}")
+
+
+def _package(entry_point: object) -> str:
+    dist = getattr(entry_point, "dist", None)
+    return getattr(dist, "name", "unknown")
+
+
+def _warn(message: str) -> None:
+    warnings.warn(message, PluginWarning, stacklevel=4)
