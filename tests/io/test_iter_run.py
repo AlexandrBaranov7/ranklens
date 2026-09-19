@@ -63,6 +63,34 @@ def test_trec_file_uses_trec_schema_by_default(tmp_path: Path) -> None:
     assert ranked.scores == (2.5, 1.5)
 
 
+def test_order_by_score_breaks_ties_like_trec_eval(tmp_path: Path) -> None:
+    # descending score, then descending doc_id as strings: "d9" > "d10"
+    text = "query_id,doc_id,s\nq1,d10,1.0\nq1,a,0.5\nq1,d9,1.0\nq1,z,2.0\n"
+    path = write(tmp_path / "run.csv", text)
+    (ranked,) = iter_run(path, schema=RunSchema(score="s"), order="score")
+    assert ranked.docs == ("z", "d9", "d10", "a")
+    assert ranked.scores == (2.0, 1.0, 1.0, 0.5)
+
+
+def test_trec_runs_are_ordered_by_score_by_default(tmp_path: Path) -> None:
+    # the rank column and the file order disagree with the scores; trec_eval trusts scores
+    path = write(tmp_path / "run.trec", "q1 Q0 a 1 0.1 x\nq1 Q0 b 2 0.9 x\n")
+    (ranked,) = iter_run(path)
+    assert ranked.docs == ("b", "a")
+
+
+def test_other_formats_keep_file_order_by_default(tmp_path: Path) -> None:
+    path = write(tmp_path / "run.csv", "query_id,doc_id,s\nq1,a,0.1\nq1,b,0.9\n")
+    (ranked,) = iter_run(path, schema=RunSchema(score="s"))
+    assert ranked.docs == ("a", "b")
+
+
+def test_order_by_score_requires_score_column(tmp_path: Path) -> None:
+    path = write(tmp_path / "run.csv", "query_id,doc_id\n")
+    with pytest.raises(ValueError, match="requires a score column"):
+        next(iter_run(path, order="score"))
+
+
 def test_jsonl_integer_ids_become_strings(tmp_path: Path) -> None:
     path = write(
         tmp_path / "run.jsonl", '{"query_id": 1, "doc_id": 10}\n{"query_id": 1, "doc_id": 7}\n'

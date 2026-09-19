@@ -25,7 +25,7 @@ def iter_run(
     *,
     schema: RunSchema | None = None,
     fmt: FormatName | None = None,
-    order: Literal["file", "rank"] = "file",
+    order: Literal["file", "rank", "score"] | None = None,
     check: Literal["grouped", "sorted"] = "grouped",
     strict: bool = False,
     errors: ErrorCollector | None = None,
@@ -36,8 +36,11 @@ def iter_run(
     table (pandas, polars, pyarrow). Only the rows of the current query are held
     in memory.
 
-    ``order`` sets document positions: file order, or ascending ``rank`` column
-    (stable for ties). ``check`` sets the input contract:
+    ``order`` sets document positions: ``"file"`` order; ascending ``"rank"`` column
+    (stable for ties); or descending ``"score"`` with ties broken by descending doc_id
+    compared as strings — exactly as trec_eval, which ignores the file order.
+    By default TREC runs are ordered by score and other formats by file order.
+    ``check`` sets the input contract:
 
     - ``"grouped"``: rows of a query are contiguous, queries in any order.
       Memory grows with the number of *queries* (ids of finished queries are kept).
@@ -50,8 +53,11 @@ def iter_run(
     """
     fmt = fmt or detect_format(source)
     schema = schema or (RunSchema.trec() if fmt == "trec" else RunSchema())
+    order = order or ("score" if fmt == "trec" else "file")
     if order == "rank" and schema.rank is None:
         raise ValueError('order="rank" requires a rank column in the schema')
+    if order == "score" and schema.score is None:
+        raise ValueError('order="score" requires a score column in the schema')
     name = source_name(source)
     collector = errors if errors is not None else ErrorCollector()
     on_error = _raise if strict else collector.record
@@ -183,10 +189,14 @@ class _Group:
         if row.rank is not None:
             self.ranks.append(row.rank)
 
-    def build(self, order: Literal["file", "rank"]) -> RankedList:
+    def build(self, order: Literal["file", "rank", "score"]) -> RankedList:
         positions: Sequence[int] = range(len(self.docs))
         if order == "rank":
             positions = sorted(positions, key=self.ranks.__getitem__)
+        elif order == "score":
+            positions = sorted(
+                positions, key=lambda i: (self.scores[i], self.docs[i]), reverse=True
+            )
         return RankedList(
             query_id=self.query_id,
             docs=tuple(self.docs[i] for i in positions),

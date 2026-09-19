@@ -7,6 +7,10 @@
 
 ### Added
 
+- `iter_run(order="score")`: сортировка по score с разрешением равенств как в trec_eval;
+  для TREC-файлов — по умолчанию.
+- Golden-тесты: `ndcg`, `map`, `mrr` совпадают с trec_eval (pytrec_eval) по каждому запросу
+  до 1e-9; генератор эталона `scripts/make_golden.py`.
 - `ranklens.metrics.rbo`: rank-biased overlap двух ранжирований без разметки.
 - Метрики `err` (шкала `max_rel`, по умолчанию 4, как в gdeval) и `rbp` (параметр `p`,
   бинарная или градуированная релевантность через `max_rel`).
