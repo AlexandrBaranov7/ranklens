@@ -3,8 +3,11 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+import numpy as np
+
 from ranklens.core.types import DocId
 from ranklens.metrics.base import cutoff, positive, probability
+from ranklens.metrics.vectorized import Batch, Matrix, Vector
 
 __all__ = ["ERR", "RBP"]
 
@@ -36,6 +39,16 @@ class ERR:
             still_looking *= 1.0 - satisfied
         return total
 
+    def batch(self, batch: Batch, k: int | None) -> Vector:
+        rel = np.clip(batch.relevance[:, :k], 0.0, self.max_rel)
+        satisfied = (np.exp2(rel) - 1.0) / 2.0**self.max_rel
+        # probability of reaching rank r: product of (1 - R_i) over the ranks before it
+        reached = np.cumprod(1.0 - satisfied, axis=1)
+        reached = np.hstack([np.ones((len(rel), 1)), reached[:, :-1]])
+        ranks = np.arange(1, rel.shape[1] + 1)
+        result: Vector = (reached * satisfied / ranks).sum(axis=1)
+        return result
+
 
 @dataclass(frozen=True, slots=True)
 class RBP:
@@ -62,6 +75,17 @@ class RBP:
         for rank, doc in enumerate(cutoff(ranked, k), start=1):
             total += self._utility(judgements.get(doc, 0.0)) * self.p ** (rank - 1)
         return (1.0 - self.p) * total
+
+    def batch(self, batch: Batch, k: int | None) -> Vector:
+        utility = self._utilities(batch.relevance[:, :k])
+        weights = self.p ** np.arange(utility.shape[1])
+        result: Vector = (1.0 - self.p) * (utility @ weights)
+        return result
+
+    def _utilities(self, relevance: Matrix) -> Matrix:
+        if self.max_rel is None:
+            return (relevance >= 1).astype(np.float64)
+        return np.clip(relevance, 0.0, self.max_rel) / self.max_rel
 
     def _utility(self, rel: float) -> float:
         if self.max_rel is None:

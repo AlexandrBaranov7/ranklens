@@ -3,8 +3,11 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+import numpy as np
+
 from ranklens.core.types import DocId
 from ranklens.metrics.base import cutoff, dcg, gain_function
+from ranklens.metrics.vectorized import Batch, Matrix, Vector, discounts
 
 __all__ = ["NDCG"]
 
@@ -32,3 +35,15 @@ class NDCG:
         if best == 0:
             return 0.0
         return dcg(gain(judgements.get(doc, 0.0)) for doc in cutoff(ranked, k)) / best
+
+    def batch(self, batch: Batch, k: int | None) -> Vector:
+        found = _gains(self.gain, batch.relevance[:, :k])
+        ideal = _gains(self.gain, batch.ideal[:, :k])
+        best = ideal @ discounts(ideal.shape[1])
+        actual = found @ discounts(found.shape[1])
+        return np.divide(actual, best, out=np.zeros_like(actual), where=best > 0)
+
+
+def _gains(gain: str, relevance: Matrix) -> Matrix:
+    positive = np.maximum(relevance, 0.0)
+    return positive if gain == "linear" else np.exp2(positive) - 1.0

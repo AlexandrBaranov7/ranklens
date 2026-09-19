@@ -79,3 +79,23 @@ jobs:
           cd /tmp
           /tmp/clean/bin/ranklens --version
           /tmp/clean/bin/python -c "import ranklens, pathlib; assert (pathlib.Path(ranklens.__file__).parent / 'py.typed').exists()"
+
+  # report only: shared runners are too noisy for a hard regression gate (Q-11)
+  bench:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - run: pipx install "poetry==$POETRY_VERSION"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: poetry
+      - run: poetry install
+      - run: >-
+          poetry run pytest tests/benchmarks --benchmark-enable --benchmark-only
+          --benchmark-columns=mean,stddev,rounds --benchmark-json=benchmark.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: benchmark
+          path: benchmark.json
