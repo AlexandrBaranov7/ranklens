@@ -8,8 +8,11 @@ A metric is computed per query; its mean over queries is what gets reported:
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+import numpy as np
+
 from ranklens.core.types import DocId
 from ranklens.metrics.base import cutoff, positive
+from ranklens.metrics.vectorized import Batch, Vector
 
 __all__ = ["AP", "RR"]
 
@@ -41,6 +44,17 @@ class AP:
                 precision_sum += hits / rank
         return precision_sum / n_relevant
 
+    def batch(self, batch: Batch, k: int | None) -> Vector:
+        relevant = batch.relevance[:, :k] >= self.rel
+        ranks = np.arange(1, relevant.shape[1] + 1)
+        precision = np.cumsum(relevant, axis=1) / ranks
+        n_relevant = (batch.ideal >= self.rel).sum(axis=1)
+        total = (precision * relevant).sum(axis=1)
+        result: Vector = np.divide(
+            total, n_relevant, out=np.zeros_like(total), where=n_relevant > 0
+        )
+        return result
+
 
 @dataclass(frozen=True, slots=True)
 class RR:
@@ -61,3 +75,8 @@ class RR:
             if judgements.get(doc, 0.0) >= self.rel:
                 return 1.0 / rank
         return 0.0
+
+    def batch(self, batch: Batch, k: int | None) -> Vector:
+        relevant = batch.relevance[:, :k] >= self.rel
+        first = relevant.argmax(axis=1)  # 0 when nothing is relevant, masked below
+        return np.where(relevant.any(axis=1), 1.0 / (first + 1), 0.0)
