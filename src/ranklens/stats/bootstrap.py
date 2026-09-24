@@ -14,14 +14,12 @@ import numpy.typing as npt
 from ranklens.core.exceptions import InsufficientSampleError, SmallSampleWarning
 from ranklens.core.result import BootstrapInterval
 from ranklens.core.types import QueryId
+from ranklens.stats.chunking import chunk_sizes
 
 __all__ = ["MIN_QUERIES", "paired_bootstrap", "paired_deltas"]
 
 MIN_QUERIES = 20
 """Below this the interval is so wide that it says little; a warning, not an error."""
-
-_CHUNK_BYTES = 64 * 1024 * 1024
-"""Resamples are drawn in chunks of about this size; the result does not depend on it."""
 
 Deltas = npt.NDArray[np.float64]
 
@@ -67,9 +65,8 @@ def paired_bootstrap(
     """Percentile confidence interval of the mean difference.
 
     Queries are resampled with replacement ``n_resamples`` times; the interval is the
-    ``alpha/2`` and ``1 - alpha/2`` quantiles of the resampled means. Resamples are drawn
-    in chunks so that memory stays bounded — with 100k queries a single index matrix of
-    10k resamples would take 8 GB — and the chunking does not change the result.
+    ``alpha/2`` and ``1 - alpha/2`` quantiles of the resampled means. Resampling happens
+    in memory-bounded chunks (see :mod:`ranklens.stats.chunking`).
     """
     values = np.asarray(deltas, dtype=np.float64)
     if values.ndim != 1:
@@ -99,9 +96,9 @@ def resample_means(values: Deltas, *, n_resamples: int, seed: int) -> Deltas:
     rng = np.random.default_rng(seed)
     n = len(values)
     means = np.empty(n_resamples, dtype=np.float64)
-    chunk = max(1, _CHUNK_BYTES // (8 * n))
-    for start in range(0, n_resamples, chunk):
-        size = min(chunk, n_resamples - start)
+    done = 0
+    for size in chunk_sizes(n_resamples, n):
         indices = rng.integers(0, n, size=(size, n))
-        means[start : start + size] = values[indices].mean(axis=1)
+        means[done : done + size] = values[indices].mean(axis=1)
+        done += size
     return means

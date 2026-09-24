@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from ranklens.core.types import QueryId
 
-__all__ = ["BootstrapInterval", "ErrorSummary", "Evaluation", "MetricResult"]
+__all__ = ["BootstrapInterval", "ComparisonResult", "ErrorSummary", "Evaluation", "MetricResult"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,3 +97,35 @@ class BootstrapInterval:
     def excludes_zero(self) -> bool:
         """Whether the interval lies entirely on one side of zero."""
         return self.low > 0.0 or self.high < 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class ComparisonResult:
+    """Comparison of one metric between two runs, A (baseline) and B.
+
+    ``delta`` is the mean of per-query differences B - A; ``ci_low``/``ci_high`` are its
+    bootstrap interval and ``p_value`` comes from the permutation test — the bootstrap
+    gives an interval, not a p-value, so the two are computed separately and both are
+    reported. ``q_value`` is filled in after correcting for multiple comparisons.
+    """
+
+    metric: str
+    mean_a: float
+    mean_b: float
+    delta: float
+    ci_low: float
+    ci_high: float
+    alpha: float
+    p_value: float
+    n_queries: int
+    n_only_a: int
+    n_only_b: int
+    n_resamples: int
+    n_permutations: int
+    seed: int
+    q_value: float | None = None
+
+    @property
+    def significant(self) -> bool:
+        """Whether the difference passes ``alpha``; after correction, by ``q_value``."""
+        return (self.p_value if self.q_value is None else self.q_value) < self.alpha
