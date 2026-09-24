@@ -7,6 +7,8 @@
 
 ### Added
 
+- `ranklens.stats.permutation_test` и `ranklens.stats.compare`: сравнение метрики двух
+  прогонов с доверительным интервалом и p-value; результат `ComparisonResult`.
 - `ranklens.stats`: paired bootstrap по запросам (`paired_deltas`, `paired_bootstrap`),
   результат `BootstrapInterval`, предупреждение `SmallSampleWarning` на малой выборке.
 - Плагины метрик через entry points `ranklens.metrics`, предупреждение `PluginWarning`,

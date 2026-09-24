@@ -111,7 +111,7 @@ def test_result_does_not_depend_on_the_chunk_size(monkeypatch: pytest.MonkeyPatc
     deltas = np.random.default_rng(2).normal(0, 1, size=40)
     reference = resample_means(deltas, n_resamples=500, seed=3)
     for chunk_bytes in (8 * 40, 8 * 40 * 7, 1 << 30):  # 1 row, 7 rows, everything at once
-        monkeypatch.setattr("ranklens.stats.bootstrap._CHUNK_BYTES", chunk_bytes)
+        monkeypatch.setattr("ranklens.stats.chunking.CHUNK_BYTES", chunk_bytes)
         np.testing.assert_array_equal(resample_means(deltas, n_resamples=500, seed=3), reference)
 
 
