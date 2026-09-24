@@ -24,10 +24,11 @@ from ranklens.core.exceptions import (
     UnsupportedModelError,
 )
 from ranklens.core.protocols import Metric
-from ranklens.core.result import ErrorSummary, Evaluation, MetricResult
+from ranklens.core.result import BootstrapInterval, ErrorSummary, Evaluation, MetricResult
 from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
 
 __all__ = [
+    "BootstrapInterval",
     "ConfigError",
     "DataError",
     "DocId",
