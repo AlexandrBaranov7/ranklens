@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from ranklens.core.types import QueryId
 
-__all__ = ["ErrorSummary", "Evaluation", "MetricResult"]
+__all__ = ["BootstrapInterval", "ErrorSummary", "Evaluation", "MetricResult"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,3 +74,26 @@ class Evaluation:
             if result.metric == metric:
                 return result
         raise KeyError(metric)
+
+
+@dataclass(frozen=True, slots=True)
+class BootstrapInterval:
+    """Percentile bootstrap interval for the mean difference between two runs.
+
+    ``delta`` is the observed mean of per-query differences (b - a); ``low`` and ``high``
+    bound it with confidence ``1 - alpha``. ``seed`` and ``n_resamples`` are kept so that
+    the number in a report can be reproduced exactly.
+    """
+
+    delta: float
+    low: float
+    high: float
+    alpha: float
+    n_queries: int
+    n_resamples: int
+    seed: int
+
+    @property
+    def excludes_zero(self) -> bool:
+        """Whether the interval lies entirely on one side of zero."""
+        return self.low > 0.0 or self.high < 0.0
