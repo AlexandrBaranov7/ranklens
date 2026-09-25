@@ -5,19 +5,20 @@ dependent, so resampling rows would understate the spread and give intervals tha
 too narrow. Resampling queries with replacement keeps each ranking intact.
 """
 
+import warnings
 from collections.abc import Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
 
-from ranklens.core.exceptions import InsufficientSampleError
+from ranklens.core.exceptions import InsufficientSampleError, SmallSampleWarning
 from ranklens.core.result import BootstrapInterval
 from ranklens.core.types import QueryId
 
 __all__ = ["MIN_QUERIES", "paired_bootstrap", "paired_deltas"]
 
 MIN_QUERIES = 20
-"""Fewer queries than this make the interval so wide that it says nothing."""
+"""Below this the interval is so wide that it says little; a warning, not an error."""
 
 _CHUNK_BYTES = 64 * 1024 * 1024
 """Resamples are drawn in chunks of about this size; the result does not depend on it."""
@@ -34,10 +35,20 @@ def paired_deltas(
     """Queries measured in both runs, sorted, and their per-query differences ``b - a``.
 
     Queries present in only one of the runs are dropped: a paired test needs pairs.
+    With no common queries at all there is nothing to compare — that is
+    :class:`InsufficientSampleError`. With fewer than ``min_queries`` the numbers are
+    computable but unreliable, so they are produced with a :class:`SmallSampleWarning`.
     """
     common = tuple(sorted(per_query_a.keys() & per_query_b.keys()))
+    if not common:
+        raise InsufficientSampleError(0, min_queries)
     if len(common) < min_queries:
-        raise InsufficientSampleError(len(common), min_queries)
+        warnings.warn(
+            f"comparison on {len(common)} paired queries: the interval will be wide and the "
+            f"p-value unstable; {min_queries} or more are recommended (see the MDE calculator)",
+            SmallSampleWarning,
+            stacklevel=2,
+        )
     deltas = np.fromiter(
         (per_query_b[query] - per_query_a[query] for query in common),
         dtype=np.float64,
@@ -67,8 +78,8 @@ def paired_bootstrap(
         raise ValueError(f"alpha must be in (0, 1), got {alpha}")
     if n_resamples < 1:
         raise ValueError(f"n_resamples must be >= 1, got {n_resamples}")
-    if len(values) < 2:
-        raise InsufficientSampleError(len(values), 2)
+    if len(values) == 0:
+        raise ValueError("deltas must not be empty")
 
     means = resample_means(values, n_resamples=n_resamples, seed=seed)
     low, high = np.quantile(means, [alpha / 2, 1.0 - alpha / 2])

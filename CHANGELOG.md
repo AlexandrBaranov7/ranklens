@@ -7,8 +7,8 @@
 
 ### Added
 
-- `ranklens.stats`: paired bootstrap по запросам (`paired_deltas`, `paired_bootstrap`)
-  и результат `BootstrapInterval`.
+- `ranklens.stats`: paired bootstrap по запросам (`paired_deltas`, `paired_bootstrap`),
+  результат `BootstrapInterval`, предупреждение `SmallSampleWarning` на малой выборке.
 - Плагины метрик через entry points `ranklens.metrics`, предупреждение `PluginWarning`,
   команда `ranklens metrics`; how-to `docs/howto/custom-metric.md`.
 - Векторизованный расчёт метрик пачками (`BatchMetric`, `evaluate(batch_size=...)`):
