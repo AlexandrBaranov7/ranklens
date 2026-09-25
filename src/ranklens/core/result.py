@@ -103,6 +103,10 @@ class BootstrapInterval:
 class ComparisonResult:
     """Comparison of one metric between two runs, A (baseline) and B.
 
+    Scope: one metric at one cutoff, averaged over the queries both runs measured.
+    It does not say whether the runs order documents differently (same metric value,
+    different order is entirely possible), only whether this metric differs.
+
     ``delta`` is the mean of per-query differences B - A; ``ci_low``/``ci_high`` are its
     bootstrap interval and ``p_value`` comes from the permutation test — the bootstrap
     gives an interval, not a p-value, so the two are computed separately and both are

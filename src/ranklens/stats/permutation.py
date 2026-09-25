@@ -19,13 +19,18 @@ def permutation_test(
     n_permutations: int = 10_000,
     seed: int = 0,
 ) -> float:
-    """Two-sided p-value for "the runs do not differ".
+    """Two-sided p-value against H0: the per-query differences are symmetric around zero.
 
-    Under that hypothesis the sign of each per-query difference is arbitrary, so the
-    test flips signs at random and counts how often the mean difference is at least as
-    extreme as the observed one. The p-value is ``(b + 1) / (m + 1)``: the observed
-    assignment belongs to the reference set, so the p-value is never 0 — with 10k
-    permutations the smallest reportable value is about 1e-4.
+    In other words, under H0 it makes no difference for any query which run is called A
+    and which B, so the sign of each difference is arbitrary. The test flips signs at
+    random and counts how often the mean difference comes out at least as extreme as the
+    observed one. The p-value is ``(b + 1) / (m + 1)``: the observed assignment belongs to
+    the reference set, so it is never 0 — with 10k permutations the smallest reportable
+    value is about 1e-4.
+
+    A small p-value says the mean difference of **this metric** is unlikely to be noise
+    of the query sample. It says nothing about how differently the two runs order
+    documents (see :func:`ranklens.metrics.rbo`) or about the effect on users.
     """
     values = np.asarray(deltas, dtype=np.float64)
     if values.ndim != 1:
