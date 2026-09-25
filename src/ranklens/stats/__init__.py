@@ -8,6 +8,10 @@ per-query difference of **one metric at one cutoff** (for example NDCG@10), B mi
   Rejecting H0 means such a mean difference is unlikely to come from chance alone.
 - `paired_bootstrap` tests nothing: it says how precisely that mean is measured
   if the queries at hand are a sample of a larger population of queries.
+- `benjamini_hochberg` keeps many comparisons honest: over 40 segments a couple of
+  "significant" ones appear by chance, so reports show q-values.
+- `minimum_detectable_effect` answers the question to ask first: is this many queries
+  enough to see the effect we care about?
 - The unit of observation is the **query**. The inference is about the population of
   queries, not about documents, sessions or users.
 
@@ -18,6 +22,19 @@ use `ranklens.metrics.rbo`. And not "will users notice": that is an online exper
 
 from ranklens.stats.bootstrap import MIN_QUERIES, paired_bootstrap, paired_deltas
 from ranklens.stats.compare import compare
+from ranklens.stats.multiple import adjust, benjamini_hochberg
 from ranklens.stats.permutation import permutation_test
+from ranklens.stats.power import minimum_detectable_effect, required_queries, standard_deviation
 
-__all__ = ["MIN_QUERIES", "compare", "paired_bootstrap", "paired_deltas", "permutation_test"]
+__all__ = [
+    "MIN_QUERIES",
+    "adjust",
+    "benjamini_hochberg",
+    "compare",
+    "minimum_detectable_effect",
+    "paired_bootstrap",
+    "paired_deltas",
+    "permutation_test",
+    "required_queries",
+    "standard_deviation",
+]
