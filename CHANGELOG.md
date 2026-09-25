@@ -7,6 +7,8 @@
 
 ### Added
 
+- `ranklens.io.PairedRuns`: merge-join двух отсортированных прогонов, пары выдач
+  по общим запросам и счётчики непарных.
 - `ranklens.stats`: коррекция множественных сравнений (`benjamini_hochberg`, `adjust`)
   и калькулятор чувствительности (`minimum_detectable_effect` с коротким алиасом `mde`,
   `required_queries`).

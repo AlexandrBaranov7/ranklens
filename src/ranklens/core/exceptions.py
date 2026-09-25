@@ -42,7 +42,9 @@ def _preview(raw: str) -> str:
     return repr(raw[:_RAW_PREVIEW_CHARS]) + f" ... ({len(raw)} chars)"
 
 
-def _location(path: str | None, line_no: int) -> str:
+def _location(path: str | None, line_no: int | None) -> str:
+    if line_no is None:  # streams merged in memory have no line numbers
+        return path or "input"
     return f"{path}:{line_no}" if path else f"line {line_no}"
 
 
@@ -74,7 +76,9 @@ class MalformedRowError(DataError):
 class UnsortedInputError(DataError):
     """Rows are not sorted by query_id."""
 
-    def __init__(self, line_no: int, prev_qid: str, curr_qid: str, path: str | None = None) -> None:
+    def __init__(
+        self, line_no: int | None, prev_qid: str, curr_qid: str, path: str | None = None
+    ) -> None:
         super().__init__(line_no, prev_qid, curr_qid, path)
         self.line_no = line_no
         self.prev_qid = prev_qid
