@@ -72,7 +72,7 @@ class QrelsRow:
 
 
 def parse_run_row(record: Record, schema: RunSchema, path: str | None = None) -> RunRow:
-    """Typed run row; raises :class:`MalformedRowError` on invalid values."""
+    """Typed run row; raises `MalformedRowError` on invalid values."""
     return RunRow(
         line_no=record.line_no,
         query_id=QueryId(_id(record, schema.query_id, path)),
@@ -84,7 +84,7 @@ def parse_run_row(record: Record, schema: RunSchema, path: str | None = None) ->
 
 
 def parse_qrels_row(record: Record, schema: QrelsSchema, path: str | None = None) -> QrelsRow:
-    """Typed qrels row; raises :class:`MalformedRowError` on invalid values."""
+    """Typed qrels row; raises `MalformedRowError` on invalid values."""
     return QrelsRow(
         line_no=record.line_no,
         query_id=QueryId(_id(record, schema.query_id, path)),

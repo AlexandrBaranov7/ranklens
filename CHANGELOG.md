@@ -7,6 +7,8 @@
 
 ### Added
 
+- Сайт документации (mkdocs-material + mkdocstrings): главная, «Первые шаги»,
+  рецепты, автосправочник по API; примеры исполняются при сборке; публикация на GitHub Pages.
 - `ranklens.stats.permutation_test` и `ranklens.stats.compare`: сравнение метрики двух
   прогонов с доверительным интервалом и p-value; результат `ComparisonResult`.
 - `ranklens.stats`: paired bootstrap по запросам (`paired_deltas`, `paired_bootstrap`),

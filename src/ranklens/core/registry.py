@@ -108,8 +108,8 @@ class Registry:
     """Name -> metric factory. ``resolve`` turns a spec string into a ready metric.
 
     With ``entry_point_group``, factories published by installed packages under that
-    group are added on first :meth:`names` or :meth:`resolve`. A plugin that fails to
-    load or clashes with an existing name is skipped with a :class:`PluginWarning`:
+    group are added on first `names` or `resolve`. A plugin that fails to
+    load or clashes with an existing name is skipped with a `PluginWarning`:
     one broken package must not break every command.
     """
 

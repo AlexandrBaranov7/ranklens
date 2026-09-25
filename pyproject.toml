@@ -51,6 +51,9 @@ dev = [
   "pyarrow>=15",
   "polars>=1",
   "pandas-stubs",
+  "mkdocs-material>=9.6",
+  "mkdocstrings[python]>=0.29",
+  "markdown-exec>=1.10",
 ]
 
 [tool.poetry]
