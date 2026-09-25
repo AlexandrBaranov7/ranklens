@@ -3,7 +3,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from ranklens.core import BootstrapInterval, InsufficientSampleError, QueryId
+from ranklens.core import BootstrapInterval, InsufficientSampleError, QueryId, SmallSampleWarning
 from ranklens.stats import paired_bootstrap, paired_deltas
 from ranklens.stats.bootstrap import resample_means
 
@@ -23,11 +23,23 @@ def test_only_queries_measured_in_both_runs_are_paired() -> None:
     np.testing.assert_allclose(deltas, [0.2, 0.0])
 
 
-def test_too_few_paired_queries() -> None:
+def test_nothing_to_compare_is_an_error() -> None:
     with pytest.raises(InsufficientSampleError) as exc:
-        paired_deltas(per_query(q1=1.0), per_query(q1=1.0, q2=1.0))
-    assert (exc.value.n, exc.value.required) == (1, 20)
-    assert "MDE" in str(exc.value)
+        paired_deltas(per_query(q1=1.0), per_query(q2=1.0))
+    assert (exc.value.n, exc.value.required) == (0, 20)
+
+
+def test_few_paired_queries_warn_but_still_compute() -> None:
+    a, b = per_query(q1=0.1, q2=0.3), per_query(q1=0.2, q2=0.1)
+    with pytest.warns(SmallSampleWarning, match="2 paired queries"):
+        queries, deltas = paired_deltas(a, b)
+    assert queries == ("q1", "q2")
+    np.testing.assert_allclose(deltas, [0.1, -0.2])
+
+
+def test_enough_paired_queries_do_not_warn() -> None:
+    values = {f"q{i}": float(i) for i in range(20)}
+    paired_deltas(per_query(**values), per_query(**values))
 
 
 # --- the interval ---------------------------------------------------------
@@ -76,9 +88,14 @@ def test_rejects_a_matrix() -> None:
         paired_bootstrap(np.zeros((3, 3)))
 
 
-def test_rejects_a_single_query() -> None:
-    with pytest.raises(InsufficientSampleError):
-        paired_bootstrap([0.1])
+def test_rejects_empty_input() -> None:
+    with pytest.raises(ValueError, match="must not be empty"):
+        paired_bootstrap([])
+
+
+def test_a_single_query_gives_a_degenerate_interval() -> None:
+    interval = paired_bootstrap([0.1], n_resamples=50)
+    assert (interval.delta, interval.low, interval.high) == (0.1, 0.1, 0.1)
 
 
 # --- reproducibility ------------------------------------------------------
@@ -99,7 +116,7 @@ def test_result_does_not_depend_on_the_chunk_size(monkeypatch: pytest.MonkeyPatc
 
 
 @given(
-    deltas=st.lists(st.floats(-5, 5, allow_nan=False), min_size=2, max_size=40),
+    deltas=st.lists(st.floats(-5, 5, allow_nan=False), min_size=1, max_size=40),
     alpha=st.floats(0.01, 0.5),
 )
 @settings(max_examples=25, deadline=None)

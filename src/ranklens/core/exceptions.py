@@ -25,6 +25,7 @@ __all__ = [
     "RankLensError",
     "RankLensWarning",
     "SkippedRowsWarning",
+    "SmallSampleWarning",
     "StatisticalError",
     "UngroupedInputError",
     "UnsortedInputError",
@@ -290,3 +291,7 @@ class SkippedRowsWarning(RankLensWarning):
 
 class PluginWarning(RankLensWarning):
     """A third-party plugin could not be loaded and was skipped."""
+
+
+class SmallSampleWarning(RankLensWarning):
+    """The sample is large enough to compute a number, but too small to trust it."""
