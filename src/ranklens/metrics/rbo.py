@@ -15,7 +15,7 @@ def rbo(first: Sequence[Hashable], second: Sequence[Hashable], p: float = 0.9) -
     Both rankings are compared at the depth of the shorter one. 1 means the same order,
     0 no common documents; top positions weigh more for smaller ``p``.
 
-    Not a :class:`~ranklens.core.Metric`: it compares two runs, not a run with qrels.
+    Not a `Metric`: it compares two runs, not a run with qrels.
     Items within one ranking must be unique.
     """
     probability("p", p)

@@ -25,12 +25,12 @@ def evaluate(
     """Compute every metric for every query of ``runs`` that has judgements.
 
     ``runs`` is consumed once, so a streaming reader works. A query of the run without
-    judgements is skipped and counted (``strict``: :class:`MissingQrelsError`).
+    judgements is skipped and counted (``strict``: `MissingQrelsError`).
     Metric specs are resolved with ``registry`` (built-in metrics by default) before
     the first query is read, so a typo fails fast.
 
     Queries are scored in batches of ``batch_size``: metrics implementing
-    :class:`~ranklens.metrics.vectorized.BatchMetric` share one relevance matrix per
+    `BatchMetric` share one relevance matrix per
     batch, the others are called query by query. Memory holds one batch, not the run.
     """
     if batch_size < 1:

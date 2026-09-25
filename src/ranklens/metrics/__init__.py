@@ -3,7 +3,7 @@
 What has which shape, and why there is no base class to inherit (D-017):
 
 - a **metric** is any callable ``(ranked, judgements, k) -> float``
-  (:class:`ranklens.core.Metric`, a Protocol). A plain function is a metric;
+  (`ranklens.core.Metric`, a Protocol). A plain function is a metric;
 - metrics **with parameters** are frozen dataclasses (`NDCG`, `AP`, `RR`, `ERR`, `RBP`):
   the parameters are then visible, comparable and validated once, at construction;
 - `dcg`, `gain_function` and friends in `base` are functions: they are pieces of

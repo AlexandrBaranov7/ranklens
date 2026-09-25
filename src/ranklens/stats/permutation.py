@@ -30,7 +30,7 @@ def permutation_test(
 
     A small p-value says the mean difference of **this metric** is unlikely to be noise
     of the query sample. It says nothing about how differently the two runs order
-    documents (see :func:`ranklens.metrics.rbo`) or about the effect on users.
+    documents (see `ranklens.metrics.rbo`) or about the effect on users.
     """
     values = np.asarray(deltas, dtype=np.float64)
     if values.ndim != 1:

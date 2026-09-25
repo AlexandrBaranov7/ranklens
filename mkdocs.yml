@@ -1,0 +1,79 @@
+site_name: ranklens
+site_description: Оффлайн-оценка, сравнение и объяснение качества ранжирования
+site_url: https://alexandrbaranov7.github.io/ranklens/
+repo_url: https://github.com/AlexandrBaranov7/ranklens
+repo_name: AlexandrBaranov7/ranklens
+edit_uri: edit/main/docs/
+copyright: MIT
+
+theme:
+  name: material
+  language: ru
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle: { icon: material/weather-night, name: Тёмная тема }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle: { icon: material/weather-sunny, name: Светлая тема }
+
+nav:
+  - Что это: index.md
+  - Первые шаги: tutorial.md
+  - Рецепты:
+      - Своя метрика: howto/custom-metric.md
+  - Справочник:
+      - ranklens.io: api/io.md
+      - ranklens.metrics: api/metrics.md
+      - ranklens.stats: api/stats.md
+      - ranklens.core: api/core.md
+
+plugins:
+  - search:
+      lang: ru
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            members_order: source
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_signature_annotations: true
+            separate_signature: true
+            docstring_section_style: table
+            filters: ["!^_"]
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences:
+      custom_fences:
+        # examples are executed while the site is built: if the API changes, the build fails
+        - name: python
+          class: python
+          validator: !!python/name:markdown_exec.validator
+          format: !!python/name:markdown_exec.formatter
+
+exclude_docs: |
+  decisions.md
+  llm-log.md
+
+watch:
+  - src

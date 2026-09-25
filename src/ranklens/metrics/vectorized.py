@@ -1,7 +1,7 @@
 """Batch evaluation with numpy: many queries at once, one relevance matrix for all metrics.
 
 The per-document dictionary lookups stay in Python; what is shared and vectorized is
-everything after them. A metric opts in by implementing :class:`BatchMetric`; metrics
+everything after them. A metric opts in by implementing `BatchMetric`; metrics
 without ``batch`` (for example, third-party ones) are still evaluated query by query.
 """
 
@@ -34,7 +34,7 @@ class Batch:
 
 @runtime_checkable
 class BatchMetric(Protocol):
-    """A metric that can also score a whole :class:`Batch`; must equal the per-query result."""
+    """A metric that can also score a whole `Batch`; must equal the per-query result."""
 
     def batch(self, batch: Batch, k: int | None) -> Vector: ...
 

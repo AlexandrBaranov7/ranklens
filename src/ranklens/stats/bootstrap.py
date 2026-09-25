@@ -34,8 +34,8 @@ def paired_deltas(
 
     Queries present in only one of the runs are dropped: a paired test needs pairs.
     With no common queries at all there is nothing to compare — that is
-    :class:`InsufficientSampleError`. With fewer than ``min_queries`` the numbers are
-    computable but unreliable, so they are produced with a :class:`SmallSampleWarning`.
+    `InsufficientSampleError`. With fewer than ``min_queries`` the numbers are
+    computable but unreliable, so they are produced with a `SmallSampleWarning`.
     """
     common = tuple(sorted(per_query_a.keys() & per_query_b.keys()))
     if not common:
@@ -66,7 +66,7 @@ def paired_bootstrap(
 
     Queries are resampled with replacement ``n_resamples`` times; the interval is the
     ``alpha/2`` and ``1 - alpha/2`` quantiles of the resampled means. Resampling happens
-    in memory-bounded chunks (see :mod:`ranklens.stats.chunking`).
+    in memory-bounded chunks (see `ranklens.stats.chunking`).
     """
     values = np.asarray(deltas, dtype=np.float64)
     if values.ndim != 1:

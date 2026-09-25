@@ -2,7 +2,7 @@
 
 This layer knows about formats but not about runs or qrels: it yields
 ``Record`` objects and reports rows it cannot parse to ``on_error``.
-Text formats are read here; Arrow-backed sources live in :mod:`ranklens.io.arrow`.
+Text formats are read here; Arrow-backed sources live in `ranklens.io.arrow`.
 """
 
 import bz2
@@ -127,7 +127,7 @@ def iter_records(
     """Yield records of ``source``; unparsable rows go to ``on_error`` and are skipped.
 
     ``required`` is checked against the header or table schema up front
-    (:class:`MissingColumnError` is always raised); for jsonl it is checked per row.
+    (`MissingColumnError` is always raised); for jsonl it is checked per row.
     Line numbers of Arrow sources are 1-based row numbers.
     ``trec_columns`` names the whitespace-separated columns of the TREC format;
     ``required`` must be a subset of them.

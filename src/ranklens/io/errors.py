@@ -9,7 +9,7 @@ __all__ = ["ErrorCollector"]
 
 
 class ErrorCollector:
-    """Accumulates recoverable data errors; read the result with :meth:`snapshot`.
+    """Accumulates recoverable data errors; read the result with `snapshot`.
 
     Memory is bounded: at most ``max_examples`` messages are kept per error type,
     no matter how many rows are skipped.

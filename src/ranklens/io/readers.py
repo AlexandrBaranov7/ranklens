@@ -30,7 +30,7 @@ def iter_run(
     strict: bool = False,
     errors: ErrorCollector | None = None,
 ) -> Iterator[RankedList]:
-    """Stream a run as one :class:`RankedList` per query.
+    """Stream a run as one `RankedList` per query.
 
     ``source`` is a file (csv, tsv, jsonl, TREC, parquet, Feather) or an in-memory
     table (pandas, polars, pyarrow). Only the rows of the current query are held
@@ -48,7 +48,7 @@ def iter_run(
       when two runs are merged side by side.
 
     Invalid rows raise in ``strict`` mode. Otherwise they are skipped and recorded
-    in ``errors``; without a collector a :class:`SkippedRowsWarning` is emitted
+    in ``errors``; without a collector a `SkippedRowsWarning` is emitted
     when the file is exhausted. Grouping and sorting violations always raise.
     """
     fmt = fmt or detect_format(source)
@@ -116,12 +116,12 @@ def read_qrels(
 ) -> Qrels:
     """Load relevance judgements into memory: ``qrels[query_id][doc_id] -> relevance``.
 
-    ``source`` is any source accepted by :func:`iter_run`.
+    ``source`` is any source accepted by `iter_run`.
 
     Unlike runs, qrels are small and are needed for random access, so rows may come
     in any order. A repeated (query_id, doc_id) pair is an error: the first
     judgement is kept in non-strict mode. Error handling is the same as in
-    :func:`iter_run`.
+    `iter_run`.
     """
     fmt = fmt or detect_format(source)
     schema = schema or (QrelsSchema.trec() if fmt == "trec" else QrelsSchema())
