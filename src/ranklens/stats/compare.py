@@ -22,9 +22,12 @@ def compare(
 ) -> ComparisonResult:
     """Compare the same metric of two runs on the queries both of them measured.
 
-    The interval comes from the paired bootstrap, the p-value from the permutation test;
-    both use independent streams derived from ``seed``, so the whole comparison is
-    reproducible from the number printed in the report.
+    Answers one question: is the mean per-query difference of this metric (candidate
+    minus baseline) distinguishable from the noise of the query sample? The interval
+    comes from the paired bootstrap, the p-value from the permutation test against
+    H0 "the per-query differences are symmetric around zero"; both use independent
+    streams derived from ``seed``, so the comparison is reproducible from the number
+    printed in the report.
     """
     if baseline.metric != candidate.metric:
         raise ValueError(
