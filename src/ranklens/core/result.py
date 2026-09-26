@@ -2,9 +2,10 @@
 
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from types import MappingProxyType
 
-from ranklens.core.types import QueryId
+from ranklens.core.types import QueryId, SegmentKey
 
 __all__ = ["BootstrapInterval", "ComparisonResult", "ErrorSummary", "Evaluation", "MetricResult"]
 
@@ -61,6 +62,10 @@ class Evaluation:
     - ``n_without_relevant``: evaluated queries without relevant documents — they score 0;
     - ``n_unjudged``: queries of the run absent from the qrels — skipped, as in trec_eval;
     - ``n_not_retrieved``: queries of the qrels absent from the run — ignored, as in trec_eval.
+
+    ``segments`` carries the segment values of the evaluated queries, in the order of the
+    schema fields, so that the same evaluation can later be sliced without reading the run
+    again. It is empty when the run has no segment columns.
     """
 
     metrics: tuple[MetricResult, ...]
@@ -68,6 +73,7 @@ class Evaluation:
     n_without_relevant: int = 0
     n_unjudged: int = 0
     n_not_retrieved: int = 0
+    segments: Mapping[QueryId, SegmentKey] = field(default_factory=lambda: MappingProxyType({}))
 
     def __getitem__(self, metric: str) -> MetricResult:
         for result in self.metrics:

@@ -61,3 +61,13 @@ def test_empty_run() -> None:
 def test_unknown_label_raises_key_error() -> None:
     with pytest.raises(KeyError):
         Evaluation(metrics=(MetricResult("mrr", {}),), n_queries=0)["ndcg"]
+
+
+def test_segments_of_evaluated_queries_are_kept() -> None:
+    runs = [
+        RankedList(QueryId("q1"), (DocId("a"),), segments=("mobile", "ru")),
+        RankedList(QueryId("q2"), (DocId("b"),)),  # no segment columns in this row
+        RankedList(QueryId("q9"), (DocId("a"),), segments=("desktop", "ru")),  # not in qrels
+    ]
+    evaluation = evaluate(runs, QRELS, ["mrr"])
+    assert dict(evaluation.segments) == {"q1": ("mobile", "ru")}

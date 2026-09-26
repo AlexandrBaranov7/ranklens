@@ -37,6 +37,7 @@ nav:
       - ranklens.io: api/io.md
       - ranklens.metrics: api/metrics.md
       - ranklens.stats: api/stats.md
+      - ranklens.aggregate: api/aggregate.md
       - ranklens.core: api/core.md
 
 plugins:
