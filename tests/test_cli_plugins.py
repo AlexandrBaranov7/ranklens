@@ -66,4 +66,4 @@ def test_plugin_metric_is_listed_and_usable(tmp_path: Path) -> None:
 
 
 def test_without_plugins_only_builtins_are_listed(tmp_path: Path) -> None:
-    assert ranklens(tmp_path, "metrics").split() == ["err", "map", "mrr", "ndcg", "rbp"]
+    assert ranklens(tmp_path, "metrics").split() == ["err", "judged", "map", "mrr", "ndcg", "rbp"]

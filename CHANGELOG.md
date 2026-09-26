@@ -7,6 +7,11 @@
 
 ### Added
 
+- Метрика `judged@k` — доля top-k с оценкой; `ranklens compare` показывает покрытие
+  разметкой у обоих прогонов и предупреждает, когда оно расходится на 10 п.п. и больше.
+- Команда `ranklens offpolicy`: IPS и SNIPS по логу и прогону новой модели.
+- `ranklens.offpolicy.estimate` (несколько оценщиков за проход), ESS в `OffPolicyEstimate`,
+  предупреждение `DegenerateWeightsWarning`, `weight_diagnostics` — распределение весов.
 - `ranklens.offpolicy.ips` и `snips` (отношение): оценка новой политики по логу старой,
   клиппинг весов, интервалы; результат `OffPolicyEstimate`. Страница «Математика →
   Off-policy оценка» с выводом и проверкой на симуляторе.
