@@ -33,6 +33,8 @@ nav:
   - Первые шаги: tutorial.md
   - Рецепты:
       - Своя метрика: howto/custom-metric.md
+  - Математика:
+      - Статистика сравнения: math/statistics.md
   - Справочник:
       - ranklens.io: api/io.md
       - ranklens.metrics: api/metrics.md
@@ -62,6 +64,8 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+  - pymdownx.arithmatex:
+      generic: true
   - pymdownx.details
   - pymdownx.highlight
   - pymdownx.superfences:
@@ -71,6 +75,14 @@ markdown_extensions:
           class: python
           validator: !!python/name:markdown_exec.validator
           format: !!python/name:markdown_exec.formatter
+
+extra_javascript:
+  - javascripts/katex.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js
+
+extra_css:
+  - https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css
 
 exclude_docs: |
   decisions.md
