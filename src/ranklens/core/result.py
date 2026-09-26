@@ -14,6 +14,7 @@ __all__ = [
     "Evaluation",
     "MetricResult",
     "OffPolicyEstimate",
+    "PPIComparison",
     "WeightDiagnostics",
 ]
 
@@ -193,3 +194,34 @@ class WeightDiagnostics:
     top1_mass: float
     n_clipped: int
     clip: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PPIComparison:
+    """Comparison of two runs on cheap (proxy) judgements corrected by a gold sample.
+
+    Prediction-powered inference: the difference measured with proxy judgements on
+    every query, plus a correction measured on a random sample of queries that also
+    have gold judgements. ``lam`` weighs the proxy part (0 — gold only, 1 — classic
+    PPI); by default it is chosen from the data to minimize the variance (PPI++).
+    The interval and the p-value are normal approximations; ``q_value`` is filled in
+    after correcting for multiple comparisons, as in `ComparisonResult`.
+    """
+
+    metric: str
+    mean_a: float
+    mean_b: float
+    delta: float
+    ci_low: float
+    ci_high: float
+    alpha: float
+    p_value: float
+    lam: float
+    n_proxy: int
+    n_gold: int
+    q_value: float | None = None
+
+    @property
+    def significant(self) -> bool:
+        """Whether the difference passes ``alpha``; after correction, by ``q_value``."""
+        return (self.p_value if self.q_value is None else self.q_value) < self.alpha
