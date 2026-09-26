@@ -80,7 +80,7 @@ def test_table_without_segments(files: dict[str, str], capsys: pytest.CaptureFix
     assert lines[0].split()[:3] == ["metric", "queries", "mean"]
     assert [line.split()[0] for line in lines[1:3]] == ["mrr", "ndcg@5"]
     assert lines[1].split()[1] == str(3 * PER_SEGMENT + 1)
-    assert "Benjamini-Hochberg over the metrics; seed 0" in lines[-1]
+    assert "Benjamini-Hochberg over the metrics; seed 0" in lines[-2]
 
 
 def test_json_without_segments_corrects_across_metrics(
@@ -123,7 +123,7 @@ def test_segment_table_marks_small_segments(
     lines = capsys.readouterr().out.splitlines()
     assert lines[0].split()[:4] == ["metric", "device", "locale", "queries"]
     assert "too few queries" in lines[4]
-    assert "over the segments of each metric" in lines[-1]
+    assert "over the segments of each metric" in lines[-2]
 
 
 def test_same_seed_same_output(files: dict[str, str], capsys: pytest.CaptureFixture[str]) -> None:
@@ -162,7 +162,7 @@ def test_alpha_sets_the_interval_and_the_threshold(
     assert main(compare_args(files, "--metrics", "mrr", "--alpha", "0.1")) == EXIT_OK
     lines = capsys.readouterr().out.splitlines()
     assert "90% CI" in lines[0]
-    assert lines[-1].startswith("* q < 0.1:")
+    assert lines[-2].startswith("* q < 0.1:")
 
 
 def test_invalid_rows_are_skipped_with_a_warning(
@@ -172,3 +172,39 @@ def test_invalid_rows_are_skipped_with_a_warning(
         candidate.write("broken-row\n")
     assert main(compare_args(files, "--metrics", "mrr")) == EXIT_OK
     assert "ranklens: warning: skipped 1 invalid rows" in capsys.readouterr().err
+
+
+# --- coverage of the qrels -------------------------------------------------
+
+
+def test_coverage_is_reported_at_the_deepest_cutoff(
+    files: dict[str, str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    document = run_json(files, capsys, "--metrics", "mrr@3", "ndcg@5")
+    coverage = document["coverage"]
+    assert coverage["metric"] == "judged@5"
+    assert (coverage["baseline"], coverage["candidate"]) == (pytest.approx(0.2), pytest.approx(0.2))
+    assert main(compare_args(files, "--metrics", "mrr@3", "ndcg")) == EXIT_OK
+    captured = capsys.readouterr()
+    assert captured.out.splitlines()[-1] == (
+        "judged (share of the top covered by the qrels): baseline 0.20, candidate 0.20"
+    )
+    assert "differs between the runs" not in captured.err
+
+
+def test_a_gap_in_coverage_is_warned_about(
+    files: dict[str, str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    candidate = Path(files["candidate"])
+    lines = candidate.read_text(encoding="utf-8").splitlines()
+    # judge more documents of the baseline: every "d1" of the baseline gets a grade 0
+    qrels = Path(files["qrels"])
+    extra = {line.split(",")[0] for line in lines[1:]}
+    with qrels.open("a", encoding="utf-8") as out:
+        out.writelines(f"{query},d1,0\n" for query in sorted(extra))
+    candidate.write_text(
+        "\n".join(line.replace(",d1,", ",new,") for line in lines) + "\n", encoding="utf-8"
+    )
+    assert main(compare_args(files, "--metrics", "mrr@5")) == EXIT_OK
+    err = capsys.readouterr().err
+    assert "judged@5 differs between the runs (baseline 0.40, candidate 0.20)" in err
