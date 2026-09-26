@@ -14,8 +14,20 @@ What has which shape, and why there is no base class to inherit (D-017):
 from ranklens.metrics.builtin import registry, resolve
 from ranklens.metrics.err_rbp import ERR, RBP
 from ranklens.metrics.evaluation import evaluate
+from ranklens.metrics.judged import Judged
 from ranklens.metrics.map_mrr import AP, RR
 from ranklens.metrics.ndcg import NDCG
 from ranklens.metrics.rbo import rbo
 
-__all__ = ["AP", "ERR", "NDCG", "RBP", "RR", "evaluate", "rbo", "registry", "resolve"]
+__all__ = [
+    "AP",
+    "ERR",
+    "NDCG",
+    "RBP",
+    "RR",
+    "Judged",
+    "evaluate",
+    "rbo",
+    "registry",
+    "resolve",
+]
