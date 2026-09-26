@@ -36,6 +36,7 @@ nav:
       - Лог из событий: howto/offpolicy.md
   - Математика:
       - Статистика сравнения: math/statistics.md
+      - Off-policy оценка: math/offpolicy.md
   - Справочник:
       - ranklens.io: api/io.md
       - ranklens.metrics: api/metrics.md

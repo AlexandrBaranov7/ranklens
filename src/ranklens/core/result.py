@@ -7,7 +7,14 @@ from types import MappingProxyType
 
 from ranklens.core.types import QueryId, SegmentKey
 
-__all__ = ["BootstrapInterval", "ComparisonResult", "ErrorSummary", "Evaluation", "MetricResult"]
+__all__ = [
+    "BootstrapInterval",
+    "ComparisonResult",
+    "ErrorSummary",
+    "Evaluation",
+    "MetricResult",
+    "OffPolicyEstimate",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,3 +146,26 @@ class ComparisonResult:
     def significant(self) -> bool:
         """Whether the difference passes ``alpha``; after correction, by ``q_value``."""
         return (self.p_value if self.q_value is None else self.q_value) < self.alpha
+
+
+@dataclass(frozen=True, slots=True)
+class OffPolicyEstimate:
+    """Value of a new policy estimated from a log collected under an old one.
+
+    ``estimator`` is ``"ips"`` (expected discounted reward, unbiased under PBM) or
+    ``"snips"`` (its ratio to the reward of everything shown — a different quantity
+    with lower variance, see docs/math/offpolicy). The interval is a normal
+    approximation over impressions. ``n_clipped`` counts rewarded documents whose
+    weight hit ``clip``; ``n_skipped`` counts impressions of queries the policy lacks.
+    """
+
+    estimator: str
+    value: float
+    ci_low: float
+    ci_high: float
+    alpha: float
+    n_impressions: int
+    n_skipped: int
+    n_rewarded: int
+    n_clipped: int
+    clip: float | None = None
