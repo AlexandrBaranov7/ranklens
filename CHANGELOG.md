@@ -7,6 +7,8 @@
 
 ### Added
 
+- `ranklens.offpolicy`: `Propensity` (PBM, степенной закон), дисконты `dcg_discount`
+  и `topk_discount`, симулятор `ClickWorld` с аналитической истиной для проверки оценщиков.
 - `ranklens.offpolicy.impressions_from_events`: лог показов из событийных таблиц
   (показы + реакции) с окном атрибуции от показа и счётчиками отброшенного (`EventLog`);
   рецепт «Лог из событий» с тем же join на SQL.
@@ -72,3 +74,8 @@
 - Инструменты: ruff, mypy strict, pytest с гейтом покрытия 85%, pre-commit.
 - CI: lint, types, тесты на Python 3.11–3.14 × Linux/macOS/Windows, установка wheel.
 - CONTRIBUTING, Code of Conduct, SECURITY, шаблоны issue и PR.
+
+### Changed
+
+- «Первые шаги»: p-value — вероятность увидеть такую же **или более экстремальную**
+  разницу при отсутствии эффекта.
