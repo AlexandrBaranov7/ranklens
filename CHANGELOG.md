@@ -7,6 +7,8 @@
 
 ### Added
 
+- Команда `ranklens compare`: сравнение метрик двух прогонов с интервалом, p-value
+  и q-value; `--segments` — то же по сегментам запросов; вывод таблицей или JSON.
 - `ranklens.aggregate.compare_segments`: сравнение двух прогонов по сегментам запросов
   с q-values (BH); `segment_values`; `Evaluation.segments` — значения сегментов оценённых
   запросов.
