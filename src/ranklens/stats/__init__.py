@@ -10,6 +10,9 @@ per-query difference of **one metric at one cutoff** (for example NDCG@10), B mi
   if the queries at hand are a sample of a larger population of queries.
 - `benjamini_hochberg` keeps many comparisons honest: over 40 segments a couple of
   "significant" ones appear by chance, so reports show q-values.
+- `ppi_compare` compares on cheap (proxy) judgements corrected by a gold sample:
+  a systematic error of the cheap judgements would bias the difference, and no
+  resampling of queries could see it.
 - `minimum_detectable_effect` answers the question to ask first: is this many queries
   enough to see the effect we care about?
 - The unit of observation is the **query**. The inference is about the population of
@@ -30,8 +33,10 @@ from ranklens.stats.power import (
     required_queries,
     standard_deviation,
 )
+from ranklens.stats.ppi import MIN_GOLD, ppi_compare
 
 __all__ = [
+    "MIN_GOLD",
     "MIN_QUERIES",
     "adjust",
     "benjamini_hochberg",
@@ -41,6 +46,7 @@ __all__ = [
     "paired_bootstrap",
     "paired_deltas",
     "permutation_test",
+    "ppi_compare",
     "required_queries",
     "standard_deviation",
 ]
