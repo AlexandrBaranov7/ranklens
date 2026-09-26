@@ -61,7 +61,20 @@ jobs:
           cache: poetry
       - run: poetry env use python
       - run: poetry install
-      - run: poetry run pytest --cov --cov-report=term-missing
+      # statistical validation runs once, in its own job
+      - run: poetry run pytest -m "not slow" --cov --cov-report=term-missing
+
+  statistics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: pipx install "poetry==$POETRY_VERSION"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: poetry
+      - run: poetry install
+      - run: poetry run pytest -m slow
 
   install:
     runs-on: ubuntu-latest

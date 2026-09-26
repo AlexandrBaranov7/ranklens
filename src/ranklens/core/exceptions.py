@@ -272,16 +272,17 @@ class StatisticalError(RankLensError):
 
 
 class InsufficientSampleError(StatisticalError):
-    """Too few queries for the requested procedure."""
+    """Too few observations (queries, impressions) for the requested procedure."""
 
-    def __init__(self, n: int, required: int) -> None:
-        super().__init__(n, required)
+    def __init__(self, n: int, required: int, unit: str = "queries") -> None:
+        super().__init__(n, required, unit)
         self.n = n
         self.required = required
+        self.unit = unit
 
     def __str__(self) -> str:
         return (
-            f"got {self.n} queries, at least {self.required} are required; "
+            f"got {self.n} {self.unit}, at least {self.required} are required; "
             "use the MDE calculator to estimate the sample size you need"
         )
 
