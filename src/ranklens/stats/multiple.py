@@ -8,11 +8,12 @@ Reports therefore print q-values, not p-values.
 
 import dataclasses
 from collections.abc import Sequence
+from typing import TypeVar
 
 import numpy as np
 import numpy.typing as npt
 
-from ranklens.core.result import ComparisonResult
+from ranklens.core.result import ComparisonResult, PPIComparison
 
 __all__ = ["adjust", "benjamini_hochberg"]
 
@@ -41,8 +42,14 @@ def benjamini_hochberg(p_values: Sequence[float] | npt.NDArray[np.float64]) -> t
     return tuple(float(value) for value in result)
 
 
-def adjust(results: Sequence[ComparisonResult]) -> tuple[ComparisonResult, ...]:
-    """Same comparisons with ``q_value`` filled in; ``significant`` then uses it."""
+Comparison = TypeVar("Comparison", ComparisonResult, PPIComparison)
+
+
+def adjust(results: Sequence[Comparison]) -> tuple[Comparison, ...]:
+    """Same comparisons with ``q_value`` filled in; ``significant`` then uses it.
+
+    Works for `ComparisonResult` and `PPIComparison` alike: BH needs only p-values.
+    """
     q_values = benjamini_hochberg([result.p_value for result in results])
     return tuple(
         dataclasses.replace(result, q_value=q_value)

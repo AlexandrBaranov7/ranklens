@@ -34,6 +34,7 @@ from ranklens.core.result import (
     Evaluation,
     MetricResult,
     OffPolicyEstimate,
+    PPIComparison,
     WeightDiagnostics,
 )
 from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
@@ -62,6 +63,7 @@ __all__ = [
     "MissingQrelsError",
     "ModelError",
     "OffPolicyEstimate",
+    "PPIComparison",
     "PluginWarning",
     "Qrels",
     "QueryId",
