@@ -3,6 +3,7 @@ import pytest
 
 from ranklens.stats import (
     compare,
+    mde,
     minimum_detectable_effect,
     permutation_test,
     required_queries,
@@ -13,6 +14,10 @@ from ranklens.stats import (
 def test_mde_follows_the_formula() -> None:
     # (z(0.975) + z(0.8)) * sd / sqrt(n) = 2.8016 * 0.1 / 10
     assert minimum_detectable_effect(sd=0.1, n_queries=100) == pytest.approx(0.028016, abs=1e-6)
+
+
+def test_mde_is_an_alias() -> None:
+    assert mde is minimum_detectable_effect
 
 
 def test_more_queries_detect_smaller_effects() -> None:
