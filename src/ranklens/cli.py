@@ -7,17 +7,28 @@ Exit codes: 0 — success, 1 — configuration or runtime error, 2 — invalid a
 import argparse
 import json
 import math
+import re
 import sys
+import warnings
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
 from ranklens import __version__
 from ranklens.core.exceptions import ConfigError, DataError, RankLensError
+from ranklens.core.feedback import FeedbackScale
 from ranklens.core.registry import BoundMetric
-from ranklens.core.result import ComparisonResult, ErrorSummary, Evaluation
+from ranklens.core.result import ComparisonResult, ErrorSummary, Evaluation, OffPolicyEstimate
 from ranklens.core.types import Qrels
-from ranklens.io import ErrorCollector, RunSchema, detect_format, iter_run, read_qrels
+from ranklens.io import (
+    ClickLogSchema,
+    ErrorCollector,
+    RunSchema,
+    detect_format,
+    iter_clicklog,
+    iter_run,
+    read_qrels,
+)
 from ranklens.metrics import evaluate, registry, resolve
 from ranklens.stats import adjust, compare
 
@@ -85,6 +96,45 @@ def build_parser() -> argparse.ArgumentParser:
     run_compare.add_argument("--format", choices=["table", "json"], default="table")
     run_compare.set_defaults(handler=_run_compare)
 
+    run_offpolicy = commands.add_parser(
+        "offpolicy",
+        help="estimate a new ranking from a feedback log of an old one",
+        description=(
+            "Estimate the metric of a new ranking from a feedback log collected under an old "
+            "one: IPS (expected discounted reward) and SNIPS (its share of the reward of "
+            "everything shown), under the position-based model p_r = (1/r)^eta. "
+            "See the page 'Off-policy оценка' of the docs for what each number means."
+        ),
+    )
+    run_offpolicy.add_argument(
+        "--log", required=True, type=Path, help="feedback log, one row per shown document"
+    )
+    run_offpolicy.add_argument("--policy", required=True, type=Path, help="run of the new model")
+    run_offpolicy.add_argument(
+        "--metric", required=True, type=_discount_spec, help="dcg@K or topk@K"
+    )
+    run_offpolicy.add_argument(
+        "--eta", type=_non_negative, default=1.0, help="examination p_r = (1/r)^eta (default 1)"
+    )
+    run_offpolicy.add_argument(
+        "--max-position", type=_positive, default=100, help="deepest position of the log"
+    )
+    run_offpolicy.add_argument(
+        "--events",
+        type=_scale,
+        metavar="EVENT=REWARD,...",
+        help="read an 'event' column with this scale, weakest first, e.g. click=1,purchase=10; "
+        "without it the log has a numeric 'reward' column",
+    )
+    run_offpolicy.add_argument(
+        "--estimators", nargs="+", choices=["ips", "snips"], default=["ips", "snips"]
+    )
+    run_offpolicy.add_argument("--clip", type=float, help="cap the weights 1/p at this value")
+    run_offpolicy.add_argument("--alpha", type=_probability, default=0.05)
+    run_offpolicy.add_argument("--strict", action="store_true")
+    run_offpolicy.add_argument("--format", choices=["table", "json"], default="table")
+    run_offpolicy.set_defaults(handler=_run_offpolicy)
+
     list_metrics = commands.add_parser(
         "metrics",
         help="list available metrics",
@@ -106,6 +156,34 @@ def _positive(text: str) -> int:
     if value < 1:
         raise argparse.ArgumentTypeError(f"must be >= 1, got {text}")
     return value
+
+
+def _non_negative(text: str) -> float:
+    value = float(text)
+    if not value >= 0.0:
+        raise argparse.ArgumentTypeError(f"must be >= 0, got {text}")
+    return value
+
+
+def _discount_spec(text: str) -> tuple[str, int]:
+    match = re.fullmatch(r"\s*(dcg|topk)\s*@\s*(\d+)\s*", text.lower())
+    if not match or int(match[2]) < 1:
+        raise argparse.ArgumentTypeError(f"expected dcg@K or topk@K with K >= 1, got {text!r}")
+    return match[1], int(match[2])
+
+
+def _scale(text: str) -> FeedbackScale:
+    rewards: dict[str, float] = {}
+    for part in text.split(","):
+        name, _, value = part.partition("=")
+        try:
+            rewards[name.strip()] = float(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"expected EVENT=REWARD, got {part!r}") from None
+    try:
+        return FeedbackScale.of(rewards)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -339,6 +417,109 @@ def _compare_json(rows: Sequence[Row], args: argparse.Namespace, skipped: ErrorS
             "seed": args.seed,
             "segments": list(args.segments),
             "correction": "benjamini-hochberg",
+        },
+        "data_errors": {"total": skipped.total, "counts": dict(skipped.counts)},
+    }
+    return json.dumps(document, indent=2, ensure_ascii=False)
+
+
+def _run_offpolicy(args: argparse.Namespace) -> int:
+    from ranklens.offpolicy import Propensity, dcg_discount, estimate, topk_discount
+
+    kind, k = args.metric
+    discount = dcg_discount(k) if kind == "dcg" else topk_discount(k)
+    propensity = Propensity.power(args.max_position, args.eta)
+    errors = ErrorCollector()
+    runs = iter_run(args.policy, strict=args.strict, errors=errors)
+    policy = {ranking.query_id: ranking for ranking in runs}
+    schema = ClickLogSchema(reward=None, event="event") if args.events else None
+    log = iter_clicklog(
+        args.log, schema=schema, scale=args.events, strict=args.strict, errors=errors
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        try:
+            results = estimate(
+                log,
+                policy,
+                propensity,
+                discount,
+                estimators=args.estimators,
+                clip=args.clip,
+                alpha=args.alpha,
+            )
+        except ValueError as exc:  # positions deeper than --max-position, a bad --clip
+            hint = "; raise --max-position" if "positions must lie" in str(exc) else ""
+            raise ConfigError(f"{exc}{hint}") from exc
+    skipped = errors.snapshot()
+    if args.format == "json":
+        print(_offpolicy_json(results, args, skipped))
+    else:
+        print(_offpolicy_table(results, args))
+    for warning in caught:
+        print(f"ranklens: warning: {warning.message}", file=sys.stderr)
+    if skipped.total:
+        print(f"ranklens: warning: {skipped}", file=sys.stderr)
+    return EXIT_OK
+
+
+def _offpolicy_table(results: Sequence[OffPolicyEstimate], args: argparse.Namespace) -> str:
+    level = f"{1 - args.alpha:.0%} CI"
+    header = ["estimator", "value", level, "impressions", "skipped", "rewarded", "clipped", "ESS"]
+    body = [
+        [
+            r.estimator,
+            f"{r.value:.4f}",
+            f"[{r.ci_low:.4f}, {r.ci_high:.4f}]",
+            str(r.n_impressions),
+            str(r.n_skipped),
+            str(r.n_rewarded),
+            str(r.n_clipped),
+            f"{r.ess:.0f}",
+        ]
+        for r in results
+    ]
+    widths = [max(len(line[i]) for line in [header, *body]) for i in range(len(header))]
+    lines = [
+        "  ".join(cell.ljust(width) for cell, width in zip(line, widths, strict=True)).rstrip()
+        for line in [header, *body]
+    ]
+    kind, k = args.metric
+    lines += [
+        "",
+        f"metric {kind}@{k}; examination p_r = (1/r)^{args.eta:g}"
+        + (f"; weights clipped at {args.clip:g}" if args.clip else "")
+        + "; snips is a share of the reward of everything shown, not a number of clicks",
+    ]
+    return "\n".join(lines)
+
+
+def _offpolicy_json(
+    results: Sequence[OffPolicyEstimate], args: argparse.Namespace, skipped: ErrorSummary
+) -> str:
+    kind, k = args.metric
+    document = {
+        "estimates": [
+            {
+                "estimator": r.estimator,
+                "value": r.value,
+                "ci_low": r.ci_low,
+                "ci_high": r.ci_high,
+                "n_impressions": r.n_impressions,
+                "n_skipped": r.n_skipped,
+                "n_rewarded": r.n_rewarded,
+                "n_clipped": r.n_clipped,
+                "ess": r.ess,
+            }
+            for r in results
+        ],
+        "settings": {
+            "metric": f"{kind}@{k}",
+            "eta": args.eta,
+            "max_position": args.max_position,
+            "clip": args.clip,
+            "alpha": args.alpha,
+            "events": dict(args.events.levels) if args.events else None,
         },
         "data_errors": {"total": skipped.total, "counts": dict(skipped.counts)},
     }

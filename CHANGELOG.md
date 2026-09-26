@@ -7,6 +7,9 @@
 
 ### Added
 
+- Команда `ranklens offpolicy`: IPS и SNIPS по логу и прогону новой модели.
+- `ranklens.offpolicy.estimate` (несколько оценщиков за проход), ESS в `OffPolicyEstimate`,
+  предупреждение `DegenerateWeightsWarning`, `weight_diagnostics` — распределение весов.
 - `ranklens.offpolicy.ips` и `snips` (отношение): оценка новой политики по логу старой,
   клиппинг весов, интервалы; результат `OffPolicyEstimate`. Страница «Математика →
   Off-policy оценка» с выводом и проверкой на симуляторе.
