@@ -2,6 +2,7 @@
 
 from ranklens.core.registry import BoundMetric, MetricSpec, Registry
 from ranklens.metrics.err_rbp import ERR, RBP
+from ranklens.metrics.judged import Judged
 from ranklens.metrics.map_mrr import AP, RR
 from ranklens.metrics.ndcg import NDCG
 
@@ -15,6 +16,7 @@ registry.register("map", AP)
 registry.register("mrr", RR)
 registry.register("err", ERR)
 registry.register("rbp", RBP)
+registry.register("judged", Judged)  # a diagnostic of the qrels, not of quality
 
 
 def resolve(spec: str | MetricSpec) -> BoundMetric:

@@ -5,6 +5,7 @@ Exit codes: 0 — success, 1 — configuration or runtime error, 2 — invalid a
 """
 
 import argparse
+import dataclasses
 import json
 import math
 import re
@@ -18,7 +19,13 @@ from ranklens import __version__
 from ranklens.core.exceptions import ConfigError, DataError, RankLensError
 from ranklens.core.feedback import FeedbackScale
 from ranklens.core.registry import BoundMetric
-from ranklens.core.result import ComparisonResult, ErrorSummary, Evaluation, OffPolicyEstimate
+from ranklens.core.result import (
+    ComparisonResult,
+    ErrorSummary,
+    Evaluation,
+    MetricResult,
+    OffPolicyEstimate,
+)
 from ranklens.core.types import Qrels
 from ranklens.io import (
     ClickLogSchema,
@@ -33,6 +40,9 @@ from ranklens.metrics import evaluate, registry, resolve
 from ranklens.stats import adjust, compare
 
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_DATA = 0, 1, 2, 3
+
+JUDGED_GAP_WARNING = 0.1
+"""Difference of judged@k between compared runs from which ``compare`` warns."""
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -264,10 +274,15 @@ def _eval_json(evaluation: Evaluation, skipped: ErrorSummary) -> str:
 
 def _run_compare(args: argparse.Namespace) -> int:
     metrics = [resolve(spec) for spec in args.metrics]
+    coverage = _coverage_metric(metrics)
     errors = ErrorCollector()
     qrels = read_qrels(args.qrels, strict=args.strict, errors=errors)
-    baseline = _evaluate(args.baseline, qrels, metrics, args, errors)
-    candidate = _evaluate(args.candidate, qrels, metrics, args, errors)
+    baseline = _evaluate(args.baseline, qrels, [*metrics, coverage], args, errors)
+    candidate = _evaluate(args.candidate, qrels, [*metrics, coverage], args, errors)
+    # the coverage diagnostic is evaluated in the same pass but is not compared
+    judged = (baseline.metrics[-1], candidate.metrics[-1])
+    baseline = dataclasses.replace(baseline, metrics=baseline.metrics[:-1])
+    candidate = dataclasses.replace(candidate, metrics=candidate.metrics[:-1])
     rows = (
         _segment_rows(baseline, candidate, args)
         if args.segments
@@ -275,12 +290,27 @@ def _run_compare(args: argparse.Namespace) -> int:
     )
     skipped = errors.snapshot()
     if args.format == "json":
-        print(_compare_json(rows, args, skipped))
+        print(_compare_json(rows, args, skipped, judged))
     else:
-        print(_compare_table(rows, args))
+        print(_compare_table(rows, args, judged))
+    if abs(judged[0].mean - judged[1].mean) >= JUDGED_GAP_WARNING:
+        print(
+            f"ranklens: warning: {judged[0].metric} differs between the runs "
+            f"(baseline {judged[0].mean:.2f}, candidate {judged[1].mean:.2f}): unjudged "
+            "documents count as not relevant, so the run the qrels cover worse is penalized "
+            "for the qrels, not for its quality",
+            file=sys.stderr,
+        )
     if skipped.total:
         print(f"ranklens: warning: {skipped}", file=sys.stderr)
     return EXIT_OK
+
+
+def _coverage_metric(metrics: Sequence[BoundMetric]) -> BoundMetric:
+    """judged@K at the deepest cutoff compared; no cutoff if some metric has none."""
+    cutoffs = [m.spec.k for m in metrics]
+    deepest = None if None in cutoffs else max(k for k in cutoffs if k is not None)
+    return resolve("judged" if deepest is None else f"judged@{deepest}")
 
 
 def _evaluate(
@@ -365,7 +395,9 @@ def _clean(record: dict[Any, Any]) -> Row:
     }
 
 
-def _compare_table(rows: Sequence[Row], args: argparse.Namespace) -> str:
+def _compare_table(
+    rows: Sequence[Row], args: argparse.Namespace, judged: tuple[MetricResult, MetricResult]
+) -> str:
     level = f"{1 - args.alpha:.0%} CI"
     header = ["metric", *args.segments, "queries", "mean A", "mean B", "delta", level, "p", "q", ""]
     body = [
@@ -387,6 +419,10 @@ def _compare_table(rows: Sequence[Row], args: argparse.Namespace) -> str:
         f"* q < {args.alpha}: Benjamini-Hochberg over "
         + ("the segments of each metric" if args.segments else "the metrics")
         + f"; seed {args.seed}",
+        (
+            f"{judged[0].metric} (share of the top covered by the qrels): "
+            f"baseline {judged[0].mean:.2f}, candidate {judged[1].mean:.2f}"
+        ),
     ]
     return "\n".join(lines)
 
@@ -407,9 +443,19 @@ def _statistics(row: Row) -> list[str]:
     ]
 
 
-def _compare_json(rows: Sequence[Row], args: argparse.Namespace, skipped: ErrorSummary) -> str:
+def _compare_json(
+    rows: Sequence[Row],
+    args: argparse.Namespace,
+    skipped: ErrorSummary,
+    judged: tuple[MetricResult, MetricResult],
+) -> str:
     document = {
         "comparisons": list(rows),
+        "coverage": {
+            "metric": judged[0].metric,
+            "baseline": _finite_or_none(judged[0].mean),
+            "candidate": _finite_or_none(judged[1].mean),
+        },
         "settings": {
             "alpha": args.alpha,
             "n_resamples": args.resamples,
@@ -524,3 +570,7 @@ def _offpolicy_json(
         "data_errors": {"total": skipped.total, "counts": dict(skipped.counts)},
     }
     return json.dumps(document, indent=2, ensure_ascii=False)
+
+
+def _finite_or_none(value: float) -> float | None:
+    return None if math.isnan(value) else value
