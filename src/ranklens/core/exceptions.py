@@ -94,19 +94,23 @@ class UnsortedInputError(DataError):
 
 
 class UngroupedInputError(DataError):
-    """Rows of one query are not contiguous."""
+    """Rows of one query (or one logged impression) are not contiguous."""
 
-    def __init__(self, line_no: int, query_id: str, path: str | None = None) -> None:
-        super().__init__(line_no, query_id, path)
+    def __init__(
+        self, line_no: int, query_id: str, path: str | None = None, unit: str = "query"
+    ) -> None:
+        super().__init__(line_no, query_id, path, unit)
         self.line_no = line_no
         self.query_id = query_id
         self.path = path
+        self.unit = unit
 
     def __str__(self) -> str:
+        column = "query_id" if self.unit == "query" else f"{self.unit}_id"
         return (
-            f"{_location(self.path, self.line_no)}: query {self.query_id!r} appears again "
-            "after other queries; rows of each query must be contiguous. "
-            "Sort the file by query_id or pass --sort."
+            f"{_location(self.path, self.line_no)}: {self.unit} {self.query_id!r} appears "
+            f"again after others; rows of each {self.unit} must be contiguous. "
+            f"Sort the file by {column} or pass --sort."
         )
 
 

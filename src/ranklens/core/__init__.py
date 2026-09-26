@@ -24,6 +24,7 @@ from ranklens.core.exceptions import (
     UnsupportedFormatError,
     UnsupportedModelError,
 )
+from ranklens.core.feedback import FeedbackScale, Impression
 from ranklens.core.protocols import Metric
 from ranklens.core.result import (
     BootstrapInterval,
@@ -44,6 +45,8 @@ __all__ = [
     "DuplicateMetricError",
     "ErrorSummary",
     "Evaluation",
+    "FeedbackScale",
+    "Impression",
     "InsufficientSampleError",
     "MalformedRowError",
     "Metric",
