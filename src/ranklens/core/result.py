@@ -14,6 +14,7 @@ __all__ = [
     "Evaluation",
     "MetricResult",
     "OffPolicyEstimate",
+    "WeightDiagnostics",
 ]
 
 
@@ -157,6 +158,9 @@ class OffPolicyEstimate:
     with lower variance, see docs/math/offpolicy). The interval is a normal
     approximation over impressions. ``n_clipped`` counts rewarded documents whose
     weight hit ``clip``; ``n_skipped`` counts impressions of queries the policy lacks.
+    ``ess`` is the effective sample size of the weights 1/p of the rewarded documents,
+    (Σw)² / Σw²: equal to ``n_rewarded`` when all weights are equal, far below it when
+    a few weights dominate.
     """
 
     estimator: str
@@ -167,5 +171,25 @@ class OffPolicyEstimate:
     n_impressions: int
     n_skipped: int
     n_rewarded: int
+    n_clipped: int
+    clip: float | None = None
+    ess: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class WeightDiagnostics:
+    """How the weights 1/p of the rewarded documents of a log are distributed.
+
+    ``ess`` = (Σw)² / Σw²; ``ess_share`` = ess / n_weights — near 1 when the weights
+    are alike, near 0 when a few dominate. ``top1_mass`` is the share of the total
+    weight held by the largest 1% of weights.
+    """
+
+    n_weights: int
+    ess: float
+    ess_share: float
+    max_weight: float
+    p99_weight: float
+    top1_mass: float
     n_clipped: int
     clip: float | None = None
