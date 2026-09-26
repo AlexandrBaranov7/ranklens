@@ -586,7 +586,8 @@ mkdocstrings их не превращает в ссылки и показал б
 и Bonferroni, который на десятках сегментов почти всё занулит). В отчёт идёт q-value.
 
 - `benjamini_hochberg(p_values)` возвращает q-values в порядке входа; сверено
-  с опубликованным примером из статьи Benjamini & Hochberg (1995).
+  с опубликованным примером из статьи
+  [Benjamini & Hochberg (1995)](https://doi.org/10.1111/j.2517-6161.1995.tb02031.x).
 - `adjust(results)` заполняет `q_value` в `ComparisonResult`; `significant` после этого
   смотрит на q-value, а не на p-value.
 - Валидация: при 200 «семьях» по 10 сравнений без эффекта хотя бы одна находка
