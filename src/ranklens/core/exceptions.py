@@ -298,6 +298,10 @@ class SkippedRowsWarning(RankLensWarning):
     """Invalid input rows were skipped in non-strict mode."""
 
 
+class DegenerateWeightsWarning(RankLensWarning):
+    """A few importance weights dominate an off-policy estimate."""
+
+
 class PluginWarning(RankLensWarning):
     """A third-party plugin could not be loaded and was skipped."""
 

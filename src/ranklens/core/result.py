@@ -14,6 +14,8 @@ __all__ = [
     "Evaluation",
     "MetricResult",
     "OffPolicyEstimate",
+    "PPIComparison",
+    "WeightDiagnostics",
 ]
 
 
@@ -157,6 +159,9 @@ class OffPolicyEstimate:
     with lower variance, see docs/math/offpolicy). The interval is a normal
     approximation over impressions. ``n_clipped`` counts rewarded documents whose
     weight hit ``clip``; ``n_skipped`` counts impressions of queries the policy lacks.
+    ``ess`` is the effective sample size of the weights 1/p of the rewarded documents,
+    (Σw)² / Σw²: equal to ``n_rewarded`` when all weights are equal, far below it when
+    a few weights dominate.
     """
 
     estimator: str
@@ -169,3 +174,54 @@ class OffPolicyEstimate:
     n_rewarded: int
     n_clipped: int
     clip: float | None = None
+    ess: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class WeightDiagnostics:
+    """How the weights 1/p of the rewarded documents of a log are distributed.
+
+    ``ess`` = (Σw)² / Σw²; ``ess_share`` = ess / n_weights — near 1 when the weights
+    are alike, near 0 when a few dominate. ``top1_mass`` is the share of the total
+    weight held by the largest 1% of weights.
+    """
+
+    n_weights: int
+    ess: float
+    ess_share: float
+    max_weight: float
+    p99_weight: float
+    top1_mass: float
+    n_clipped: int
+    clip: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PPIComparison:
+    """Comparison of two runs on cheap (proxy) judgements corrected by a gold sample.
+
+    Prediction-powered inference: the difference measured with proxy judgements on
+    every query, plus a correction measured on a random sample of queries that also
+    have gold judgements. ``lam`` weighs the proxy part (0 — gold only, 1 — classic
+    PPI); by default it is chosen from the data to minimize the variance (PPI++).
+    The interval and the p-value are normal approximations; ``q_value`` is filled in
+    after correcting for multiple comparisons, as in `ComparisonResult`.
+    """
+
+    metric: str
+    mean_a: float
+    mean_b: float
+    delta: float
+    ci_low: float
+    ci_high: float
+    alpha: float
+    p_value: float
+    lam: float
+    n_proxy: int
+    n_gold: int
+    q_value: float | None = None
+
+    @property
+    def significant(self) -> bool:
+        """Whether the difference passes ``alpha``; after correction, by ``q_value``."""
+        return (self.p_value if self.q_value is None else self.q_value) < self.alpha
