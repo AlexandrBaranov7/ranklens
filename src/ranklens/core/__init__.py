@@ -3,6 +3,7 @@
 from ranklens.core.exceptions import (
     ConfigError,
     DataError,
+    DegenerateWeightsWarning,
     DuplicateDocumentError,
     DuplicateMetricError,
     InsufficientSampleError,
@@ -33,6 +34,7 @@ from ranklens.core.result import (
     Evaluation,
     MetricResult,
     OffPolicyEstimate,
+    WeightDiagnostics,
 )
 from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
 
@@ -41,6 +43,7 @@ __all__ = [
     "ComparisonResult",
     "ConfigError",
     "DataError",
+    "DegenerateWeightsWarning",
     "DocId",
     "DuplicateDocumentError",
     "DuplicateMetricError",
@@ -73,4 +76,5 @@ __all__ = [
     "UnsortedInputError",
     "UnsupportedFormatError",
     "UnsupportedModelError",
+    "WeightDiagnostics",
 ]

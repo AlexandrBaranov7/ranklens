@@ -13,20 +13,57 @@ Derivations, assumptions and the simulator check are in docs/math/offpolicy. In 
 Both read the log in one pass and keep running sums only.
 """
 
-from collections.abc import Iterable, Mapping
+import warnings
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from statistics import NormalDist
 from typing import Literal
 
 import numpy as np
 
-from ranklens.core.exceptions import InsufficientSampleError
+from ranklens.core.exceptions import DegenerateWeightsWarning, InsufficientSampleError
 from ranklens.core.feedback import Impression
 from ranklens.core.result import OffPolicyEstimate
 from ranklens.core.types import DocId, QueryId, RankedList
 from ranklens.offpolicy.propensity import Discount, Propensity
 
-__all__ = ["ips", "snips"]
+__all__ = ["ESS_WARNING_SHARE", "Estimator", "estimate", "ips", "snips"]
+
+
+Estimator = Literal["ips", "snips"]
+
+ESS_WARNING_SHARE = 0.1
+"""ESS below this share of the weights means a few weights dominate the estimate."""
+
+
+def estimate(
+    log: Iterable[Impression],
+    policy: Mapping[QueryId, RankedList],
+    propensity: Propensity,
+    discount: Discount,
+    *,
+    estimators: Sequence[Estimator] = ("ips", "snips"),
+    clip: float | None = None,
+    alpha: float = 0.05,
+) -> tuple[OffPolicyEstimate, ...]:
+    """Several estimators from one pass over the log, in the order of ``estimators``.
+
+    Warns with `DegenerateWeightsWarning` when the effective sample size of the weights
+    falls below 10% of their number: then a handful of rewards at deep positions
+    decide the estimate, and its interval is not to be trusted.
+    """
+    _check_alpha(alpha)
+    unknown = set(estimators) - {"ips", "snips"}
+    if unknown or not estimators:
+        raise ValueError(f"estimators must be 'ips' and/or 'snips', got {list(estimators)}")
+    sums = _accumulate(log, policy, propensity, discount, clip)
+    if sums.n < 2:
+        raise InsufficientSampleError(sums.n, 2, unit="impressions")
+    _warn_if_degenerate(sums)
+    return tuple(
+        _ips(sums, clip, alpha) if name == "ips" else _snips(sums, clip, alpha)
+        for name in estimators
+    )
 
 
 def ips(
@@ -39,13 +76,10 @@ def ips(
     alpha: float = 0.05,
 ) -> OffPolicyEstimate:
     """Expected discounted reward of ``policy``: mean over impressions of Σ c·λ/p."""
-    _check_alpha(alpha)
-    sums = _accumulate(log, policy, propensity, discount, clip)
-    if sums.n < 2:
-        raise InsufficientSampleError(sums.n, 2, unit="impressions")
-    mean = sums.u / sums.n
-    variance = (sums.uu - sums.n * mean**2) / (sums.n - 1)
-    return _estimate("ips", mean, variance / sums.n, sums, clip, alpha)
+    (result,) = estimate(
+        log, policy, propensity, discount, estimators=("ips",), clip=clip, alpha=alpha
+    )
+    return result
 
 
 def snips(
@@ -58,10 +92,19 @@ def snips(
     alpha: float = 0.05,
 ) -> OffPolicyEstimate:
     """Share of the reweighted reward of the shown documents that ``policy`` collects."""
-    _check_alpha(alpha)
-    sums = _accumulate(log, policy, propensity, discount, clip)
-    if sums.n < 2:
-        raise InsufficientSampleError(sums.n, 2, unit="impressions")
+    (result,) = estimate(
+        log, policy, propensity, discount, estimators=("snips",), clip=clip, alpha=alpha
+    )
+    return result
+
+
+def _ips(sums: "_Sums", clip: float | None, alpha: float) -> OffPolicyEstimate:
+    mean = sums.u / sums.n
+    variance = (sums.uu - sums.n * mean**2) / (sums.n - 1)
+    return _estimate("ips", mean, variance / sums.n, sums, clip, alpha)
+
+
+def _snips(sums: "_Sums", clip: float | None, alpha: float) -> OffPolicyEstimate:
     if sums.v == 0:
         raise InsufficientSampleError(0, 1, unit="rewarded documents")
     ratio = sums.u / sums.v
@@ -69,6 +112,19 @@ def snips(
     residual = sums.uu - 2 * ratio * sums.uv + ratio**2 * sums.vv
     variance = residual / (sums.n - 1) / (sums.n * (sums.v / sums.n) ** 2)
     return _estimate("snips", ratio, variance, sums, clip, alpha)
+
+
+def _warn_if_degenerate(sums: "_Sums") -> None:
+    if sums.rewarded and sums.ww:
+        share = sums.w**2 / sums.ww / sums.rewarded
+        if share < ESS_WARNING_SHARE:
+            warnings.warn(
+                f"effective sample size of the weights is {share:.1%} of {sums.rewarded}: "
+                "a few rewards at deep positions decide the estimate; consider clip or "
+                "check the propensities",
+                DegenerateWeightsWarning,
+                stacklevel=3,
+            )
 
 
 @dataclass(slots=True)
@@ -84,6 +140,8 @@ class _Sums:
     uu: float = 0.0
     vv: float = 0.0
     uv: float = 0.0
+    w: float = 0.0  # weights 1/p (after clipping) of rewarded documents
+    ww: float = 0.0
 
 
 def _accumulate(
@@ -116,6 +174,8 @@ def _accumulate(
             # a document the policy does not rank gets no weight; 0 is outside any discount
             positions = np.array([new_rank.get(impression.docs[i], 0) for i in rewarded])
             lam = np.where(positions > 0, discount(np.maximum(positions, 1)), 0.0)
+            sums.w += float(weights.sum())
+            sums.ww += float((weights * weights).sum())
             u = float((rewards * weights * lam).sum())
             v = float((rewards * weights).sum())
             sums.rewarded += len(rewarded)
@@ -129,7 +189,7 @@ def _accumulate(
 
 
 def _estimate(
-    name: Literal["ips", "snips"],
+    name: Estimator,
     value: float,
     variance: float,
     sums: _Sums,
@@ -148,6 +208,7 @@ def _estimate(
         n_rewarded=sums.rewarded,
         n_clipped=sums.clipped,
         clip=clip,
+        ess=sums.w**2 / sums.ww if sums.ww else 0.0,
     )
 
 
