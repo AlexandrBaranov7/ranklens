@@ -7,6 +7,9 @@
 
 ### Added
 
+- `ranklens.offpolicy.impressions_from_events`: лог показов из событийных таблиц
+  (показы + реакции) с окном атрибуции от показа и счётчиками отброшенного (`EventLog`);
+  рецепт «Лог из событий» с тем же join на SQL.
 - Обратная связь для off-policy: `Impression` (показ выдачи с позициями и наградами),
   `FeedbackScale` (упорядоченная шкала событий с весами), чтение лога `iter_clicklog`
   и схема `ClickLogSchema`.

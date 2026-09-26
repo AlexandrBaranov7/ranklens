@@ -33,6 +33,7 @@ nav:
   - Первые шаги: tutorial.md
   - Рецепты:
       - Своя метрика: howto/custom-metric.md
+      - Лог из событий: howto/offpolicy.md
   - Математика:
       - Статистика сравнения: math/statistics.md
   - Справочник:
@@ -40,6 +41,7 @@ nav:
       - ranklens.metrics: api/metrics.md
       - ranklens.stats: api/stats.md
       - ranklens.aggregate: api/aggregate.md
+      - ranklens.offpolicy: api/offpolicy.md
       - ranklens.core: api/core.md
 
 plugins:

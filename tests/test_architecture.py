@@ -17,7 +17,7 @@ LAYERS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "io": (frozenset({"core"}), frozenset({"pyarrow"})),
     "metrics": (frozenset({"core"}), frozenset({"numpy"})),
     "stats": (frozenset({"core"}), frozenset({"numpy"})),
-    "offpolicy": (frozenset({"core", "metrics", "stats"}), frozenset({"numpy"})),
+    "offpolicy": (frozenset({"core", "metrics", "stats"}), frozenset({"numpy", "pandas"})),
     "explain": (
         frozenset({"core", "metrics"}),
         frozenset({"numpy", "scipy", "catboost", "lightgbm", "xgboost", "sklearn"}),
