@@ -10,7 +10,7 @@ from statistics import NormalDist
 
 import numpy as np
 
-__all__ = ["minimum_detectable_effect", "required_queries", "standard_deviation"]
+__all__ = ["mde", "minimum_detectable_effect", "required_queries", "standard_deviation"]
 
 _NORMAL = NormalDist()
 
@@ -30,6 +30,10 @@ def minimum_detectable_effect(
     if n_queries < 1:
         raise ValueError(f"n_queries must be >= 1, got {n_queries}")
     return float(_factor(alpha, power) * sd / np.sqrt(n_queries))
+
+
+mde = minimum_detectable_effect
+"""Short alias of `minimum_detectable_effect`."""
 
 
 def required_queries(delta: float, sd: float, *, alpha: float = 0.05, power: float = 0.8) -> int:

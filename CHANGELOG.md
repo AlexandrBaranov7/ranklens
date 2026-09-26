@@ -8,7 +8,8 @@
 ### Added
 
 - `ranklens.stats`: коррекция множественных сравнений (`benjamini_hochberg`, `adjust`)
-  и калькулятор чувствительности (`minimum_detectable_effect`, `required_queries`).
+  и калькулятор чувствительности (`minimum_detectable_effect` с коротким алиасом `mde`,
+  `required_queries`).
 - Сайт документации (mkdocs-material + mkdocstrings): главная, «Первые шаги»,
   рецепты, автосправочник по API; примеры исполняются при сборке; публикация на GitHub Pages.
 - `ranklens.stats.permutation_test` и `ranklens.stats.compare`: сравнение метрики двух

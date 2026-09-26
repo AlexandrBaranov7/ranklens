@@ -24,13 +24,19 @@ from ranklens.stats.bootstrap import MIN_QUERIES, paired_bootstrap, paired_delta
 from ranklens.stats.compare import compare
 from ranklens.stats.multiple import adjust, benjamini_hochberg
 from ranklens.stats.permutation import permutation_test
-from ranklens.stats.power import minimum_detectable_effect, required_queries, standard_deviation
+from ranklens.stats.power import (
+    mde,
+    minimum_detectable_effect,
+    required_queries,
+    standard_deviation,
+)
 
 __all__ = [
     "MIN_QUERIES",
     "adjust",
     "benjamini_hochberg",
     "compare",
+    "mde",
     "minimum_detectable_effect",
     "paired_bootstrap",
     "paired_deltas",
