@@ -7,6 +7,9 @@
 
 ### Added
 
+- `ranklens.aggregate.compare_segments`: сравнение двух прогонов по сегментам запросов
+  с q-values (BH); `segment_values`; `Evaluation.segments` — значения сегментов оценённых
+  запросов.
 - `ranklens.io.PairedRuns`: merge-join двух отсортированных прогонов, пары выдач
   по общим запросам и счётчики непарных.
 - `ranklens.stats`: коррекция множественных сравнений (`benjamini_hochberg`, `adjust`)

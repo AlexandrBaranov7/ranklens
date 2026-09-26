@@ -6,7 +6,7 @@ from types import MappingProxyType
 from ranklens.core.exceptions import MissingQrelsError
 from ranklens.core.registry import BoundMetric, Registry
 from ranklens.core.result import Evaluation, MetricResult
-from ranklens.core.types import DocId, Qrels, QueryId, RankedList
+from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
 from ranklens.metrics.builtin import registry as builtin_registry
 from ranklens.metrics.vectorized import Batch, BatchMetric, make_batch
 
@@ -37,6 +37,7 @@ def evaluate(
         raise ValueError(f"batch_size must be >= 1, got {batch_size}")
     bound = [registry.resolve(m) if isinstance(m, str) else m for m in metrics]
     values: list[dict[QueryId, float]] = [{} for _ in bound]
+    segments: dict[QueryId, SegmentKey] = {}
     seen: set[QueryId] = set()
     n_unjudged = n_without_relevant = 0
     pending: list[_Item] = []
@@ -51,6 +52,8 @@ def evaluate(
             continue
         if not any(rel > 0 for rel in judgements.values()):
             n_without_relevant += 1
+        if ranked.segments:
+            segments[ranked.query_id] = ranked.segments
         pending.append((ranked.query_id, ranked.docs, judgements))
         if len(pending) == batch_size:
             _score(pending, bound, values)
@@ -66,6 +69,7 @@ def evaluate(
         n_without_relevant=n_without_relevant,
         n_unjudged=n_unjudged,
         n_not_retrieved=sum(1 for query_id in qrels if query_id not in seen),
+        segments=MappingProxyType(segments),
     )
 
 
