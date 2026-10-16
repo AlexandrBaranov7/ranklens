@@ -11,6 +11,7 @@ from ranklens.explain.adapters.libraries import (
     SklearnAdapter,
     XGBoostAdapter,
 )
+from ranklens.explain.adapters.neural import ONNXAdapter, TorchAdapter
 
 __all__ = [
     "ADAPTERS",
@@ -18,9 +19,11 @@ __all__ = [
     "CatBoostAdapter",
     "Features",
     "LightGBMAdapter",
+    "ONNXAdapter",
     "ScorerAdapter",
     "Scores",
     "SklearnAdapter",
+    "TorchAdapter",
     "XGBoostAdapter",
     "adapt",
 ]
@@ -30,6 +33,8 @@ ADAPTERS: dict[str, Callable[..., ScorerAdapter]] = {
     "lightgbm": LightGBMAdapter,
     "xgboost": XGBoostAdapter,
     "sklearn": SklearnAdapter,
+    "torch": TorchAdapter,
+    "onnxruntime": ONNXAdapter,
 }
 """Top-level package of a model's class -> its adapter. A new library is one line here."""
 

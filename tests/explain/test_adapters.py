@@ -16,6 +16,7 @@ import pytest
 from ranklens.core import UnsupportedModelError
 from ranklens.explain import CallableAdapter, ScorerAdapter, adapt
 from ranklens.explain.adapters import (
+    ADAPTERS,
     CatBoostAdapter,
     LightGBMAdapter,
     SklearnAdapter,
@@ -163,7 +164,7 @@ def test_subclass_defined_elsewhere_is_recognized_by_its_mro(
 def test_unknown_model_points_to_callable_adapter() -> None:
     with pytest.raises(UnsupportedModelError, match="CallableAdapter") as exc:
         adapt(object())
-    assert exc.value.supported == ("catboost", "lightgbm", "sklearn", "xgboost")
+    assert exc.value.supported == tuple(sorted(ADAPTERS))
 
 
 def test_callable_adapter() -> None:
