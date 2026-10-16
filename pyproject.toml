@@ -94,7 +94,7 @@ enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
 
 # pyarrow ships no type information; its use is confined to ranklens.io.arrow
 [[tool.mypy.overrides]]
-module = ["pyarrow", "pyarrow.*"]
+module = ["pyarrow", "pyarrow.*", "catboost", "lightgbm", "xgboost", "sklearn", "sklearn.*"]
 ignore_missing_imports = true
 
 # --- pytest / coverage --------------------------------------------------

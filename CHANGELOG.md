@@ -7,6 +7,8 @@
 
 ### Added
 
+- `ranklens.explain`: протокол `ScorerAdapter`, адаптеры CatBoost, LightGBM, XGBoost,
+  scikit-learn и `CallableAdapter`, фабрика `adapt(model)` по MRO.
 - `ranklens.stats.ppi_compare` (PPI++): сравнение прогонов по дешёвой (proxy) разметке
   с поправкой по случайной gold-подвыборке; результат `PPIComparison`, `adjust` принимает
   его наравне с `ComparisonResult`. Раздел «Неточная разметка» в «Статистике сравнения».
@@ -88,6 +90,7 @@
 
 ### Changed
 
+- CI: задание `models` с extra `models` для тестов адаптеров.
 - CI: статистическая валидация (`-m slow`) — отдельное задание `statistics`, матрица
   тестов её не запускает.
 - «Первые шаги»: p-value — вероятность увидеть такую же **или более экстремальную**
