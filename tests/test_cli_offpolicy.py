@@ -112,6 +112,7 @@ def test_bad_rows_are_skipped_with_a_warning(
         ("--metric", "dcg@10", "--events", "click"),
         ("--metric", "dcg@10", "--events", "purchase=10,click=1"),
         ("--metric", "dcg@10", "--estimators", "dr"),
+        ("--metric", "dcg@10", "--clip", "0.5"),
     ],
 )
 def test_invalid_arguments_use_argparse_code(

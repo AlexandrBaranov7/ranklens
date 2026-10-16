@@ -85,8 +85,12 @@ def test_degenerate_weights_warn() -> None:
     steep = Propensity.power(depth=50, eta=2.0)  # a click at position 27 weighs 729
     log = WORLD.simulate(LOGGING, steep, n_impressions=3_000, seed=5)
     assert weight_diagnostics(log, steep).ess_share < 0.1
-    with pytest.warns(DegenerateWeightsWarning, match="effective sample size"):
+    with pytest.warns(DegenerateWeightsWarning, match="effective sample size") as caught:
         ips(log, NEW, steep, dcg_discount(10))
+    assert caught[0].filename == __file__  # points at the caller, not into the library
+    with pytest.warns(DegenerateWeightsWarning) as caught:
+        estimate(log, NEW, steep, dcg_discount(10))
+    assert caught[0].filename == __file__
     # clipping restores enough effective sample to stay quiet
     clipped = ips(log, NEW, steep, dcg_discount(10), clip=20.0)
     assert clipped.ess / clipped.n_rewarded >= 0.1
