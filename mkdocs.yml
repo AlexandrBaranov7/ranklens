@@ -37,7 +37,7 @@ nav:
   - Математика:
       - Статистика сравнения: math/statistics.md
       - Off-policy оценка: math/offpolicy.md
-      - Объяснение пар: math/explain.md
+      - Объяснение модели: math/explain.md
   - Справочник:
       - ranklens.io: api/io.md
       - ranklens.metrics: api/metrics.md

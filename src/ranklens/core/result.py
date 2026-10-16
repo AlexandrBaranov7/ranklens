@@ -12,6 +12,7 @@ __all__ = [
     "ComparisonResult",
     "ErrorSummary",
     "Evaluation",
+    "ListwiseAttribution",
     "MetricResult",
     "OffPolicyEstimate",
     "PPIComparison",
@@ -252,3 +253,26 @@ class PairAttribution:
         """(feature, contribution) by absolute contribution, largest first."""
         pairs = zip(self.feature_names, self.contributions, strict=True)
         return tuple(sorted(pairs, key=lambda pair: -abs(pair[1])))
+
+
+@dataclass(frozen=True, slots=True)
+class ListwiseAttribution:
+    """How much a metric drops when a feature (or a group of them) stops carrying signal.
+
+    For each feature the values of the documents of a query are shuffled among them,
+    the documents are ranked again, and the drop of the metric is recorded per query:
+    ``drops[i]`` is a `MetricResult` of the drop for ``features[i]``, so the usual
+    statistics (``compare``, bootstrap) apply to it. ``baseline`` is the metric itself.
+    """
+
+    metric: str
+    features: tuple[str, ...]
+    drops: tuple[MetricResult, ...]
+    baseline: MetricResult
+    n_repeats: int
+    seed: int
+
+    def ranked(self) -> tuple[tuple[str, float], ...]:
+        """(feature, mean drop over queries), the largest drop first."""
+        means = zip(self.features, (drop.mean for drop in self.drops), strict=True)
+        return tuple(sorted(means, key=lambda pair: -pair[1]))
