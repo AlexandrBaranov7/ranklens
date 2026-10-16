@@ -107,6 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_compare.add_argument("--seed", type=int, default=0)
     run_compare.add_argument("--strict", action="store_true")
     run_compare.add_argument("--format", choices=["table", "json"], default="table")
+    _add_report(run_compare)
     run_compare.set_defaults(handler=_run_compare)
 
     run_offpolicy = commands.add_parser(
@@ -148,6 +149,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_offpolicy.add_argument("--alpha", type=_probability, default=0.05)
     run_offpolicy.add_argument("--strict", action="store_true")
     run_offpolicy.add_argument("--format", choices=["table", "json"], default="table")
+    _add_report(run_offpolicy)
     run_offpolicy.set_defaults(handler=_run_offpolicy)
 
     run_explain = commands.add_parser(
@@ -190,6 +192,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_explain.add_argument("--seed", type=int, default=0)
     run_explain.add_argument("--strict", action="store_true")
     run_explain.add_argument("--format", choices=["table", "json"], default="table")
+    _add_report(run_explain)
     run_explain.set_defaults(handler=_run_explain)
 
     list_metrics = commands.add_parser(
@@ -199,6 +202,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     list_metrics.set_defaults(handler=_list_metrics)
     return parser
+
+
+def _add_report(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--report",
+        type=_report_path,
+        metavar="PATH",
+        help="also write a report: .html (self-contained, with charts) or .md (tables)",
+    )
+
+
+def _report_path(text: str) -> Path:
+    path = Path(text)
+    if path.suffix.lower() not in (".html", ".htm", ".md"):
+        raise argparse.ArgumentTypeError(f"a report is .html or .md, got {text!r}")
+    return path
 
 
 def _probability(text: str) -> float:
@@ -349,6 +368,8 @@ def _run_compare(args: argparse.Namespace) -> int:
         print(_compare_json(rows, args, skipped, judged))
     else:
         print(_compare_table(rows, args, judged))
+    if args.report:
+        _compare_report(args, rows, baseline, candidate, judged)
     if abs(judged[0].mean - judged[1].mean) >= JUDGED_GAP_WARNING:
         print(
             f"ranklens: warning: {judged[0].metric} differs between the runs "
@@ -558,6 +579,8 @@ def _run_offpolicy(args: argparse.Namespace) -> int:
         print(_offpolicy_json(results, args, skipped))
     else:
         print(_offpolicy_table(results, args))
+    if args.report:
+        _offpolicy_report(args, results, propensity, schema)
     for warning in caught:
         print(f"ranklens: warning: {warning.message}", file=sys.stderr)
     if skipped.total:
@@ -677,6 +700,8 @@ def _run_explain(args: argparse.Namespace) -> int:
     common = {"groups": groups, "n_repeats": args.repeats, "seed": args.seed}
     overall = listwise(adapter, queries, metric, **common)
     worst = diagnose(adapter, queries, metric, top=args.top_worst, **common)
+    if args.report:
+        _explain_report(args, overall, worst, groups)
     skipped = errors.snapshot()
     if args.format == "json":
         print(_explain_json(overall, worst, groups, by_position, skipped))
@@ -741,3 +766,151 @@ def _explain_json(
         "data_errors": {"total": skipped.total, "counts": dict(skipped.counts)},
     }
     return json.dumps(document, indent=2, ensure_ascii=False)
+
+
+# --- reports ---------------------------------------------------------------
+
+
+def _compare_report(
+    args: argparse.Namespace,
+    rows: Sequence[Row],
+    baseline: Evaluation,
+    candidate: Evaluation,
+    judged: tuple[MetricResult, MetricResult],
+) -> None:
+    from ranklens.core.registry import parse_spec
+    from ranklens.report import Section, write_report
+    from ranklens.viz import delta_distribution, metric_vs_k, rank_flow, segment_gains
+
+    table = [
+        {**{k: v for k, v in row.items() if k != "segment"}, **row.get("segment", {})}
+        for row in rows
+    ]
+    coverage = f"{judged[0].metric}: baseline {judged[0].mean:.2f}, candidate {judged[1].mean:.2f}"
+    runs = f"{args.baseline.name} (A) vs {args.candidate.name} (B)"
+    sections = [Section("Comparison", text=runs, table=table)]
+    sections.append(Section("Coverage of the qrels", text=coverage))
+    if not _charts(args):  # a Markdown report has tables only
+        write_report(args.report, "ranklens compare", sections)
+        return
+    if args.segments:
+        for metric in dict.fromkeys(str(row["metric"]) for row in rows):
+            compared = {
+                " / ".join(map(str, row["segment"].values())): _as_comparison(row, args)
+                for row in rows
+                if row["metric"] == metric and row["delta"] is not None
+            }
+            if compared:
+                sections.append(Section(f"{metric} by segment", figure=segment_gains(compared)))
+    for a, b in zip(baseline.metrics, candidate.metrics, strict=True):
+        sections.append(
+            Section(f"{a.metric}: per-query differences", figure=delta_distribution(a, b))
+        )
+    names = [parse_spec(m.metric) for m in baseline.metrics]
+    for name in dict.fromkeys(spec.name for spec in names if spec.k is not None):
+        if sum(spec.name == name and spec.k is not None for spec in names) > 1:
+            curves = metric_vs_k({"baseline": baseline, "candidate": candidate}, name)
+            sections.append(Section(f"{name} by cutoff", figure=curves))
+    runs_a = {r.query_id: r for r in iter_run(args.baseline)}
+    runs_b = {r.query_id: r for r in iter_run(args.candidate)}
+    pairs = [(runs_a[q], runs_b[q]) for q in runs_a.keys() & runs_b.keys()]
+    sections.append(Section("Where the top 10 documents moved", figure=rank_flow(pairs, k=10)))
+    write_report(args.report, "ranklens compare", sections)
+
+
+def _charts(args: argparse.Namespace) -> bool:
+    """Charts go only into an HTML report: Markdown shows tables, and needs no plotly."""
+    return bool(args.report.suffix.lower() in (".html", ".htm"))
+
+
+def _as_comparison(row: Row, args: argparse.Namespace) -> ComparisonResult:
+    return ComparisonResult(
+        metric=str(row["metric"]),
+        mean_a=row["mean_a"],
+        mean_b=row["mean_b"],
+        delta=row["delta"],
+        ci_low=row["ci_low"],
+        ci_high=row["ci_high"],
+        alpha=args.alpha,
+        p_value=row["p_value"],
+        n_queries=row["n_queries"],
+        n_only_a=0,
+        n_only_b=0,
+        n_resamples=args.resamples,
+        n_permutations=args.permutations,
+        seed=args.seed,
+        q_value=row["q_value"],
+    )
+
+
+def _offpolicy_report(
+    args: argparse.Namespace,
+    results: Sequence[OffPolicyEstimate],
+    propensity: Any,
+    schema: ClickLogSchema | None,
+) -> None:
+    from ranklens.offpolicy import weight_diagnostics
+    from ranklens.report import Section, write_report
+    from ranklens.viz import propensity_diagnostics
+
+    table = [
+        {
+            "estimator": r.estimator,
+            "value": r.value,
+            "ci_low": r.ci_low,
+            "ci_high": r.ci_high,
+            "impressions": r.n_impressions,
+            "rewarded": r.n_rewarded,
+            "clipped": r.n_clipped,
+            "ESS": r.ess,
+        }
+        for r in results
+    ]
+    sections = [
+        Section(
+            "Estimates",
+            text="snips is a share of the reward of everything shown, not a number of clicks",
+            table=table,
+        )
+    ]
+    if _charts(args):
+        # the log is a stream: read it once more for the weights
+        log = iter_clicklog(args.log, schema=schema, scale=args.events, errors=ErrorCollector())
+        weights = weight_diagnostics(log, propensity, clip=args.clip)
+        sections.append(
+            Section("Weights 1/p of the rewarded documents", figure=propensity_diagnostics(weights))
+        )
+    write_report(args.report, "ranklens offpolicy", sections)
+
+
+def _explain_report(
+    args: argparse.Namespace,
+    overall: ListwiseAttribution,
+    worst: Sequence[QueryDiagnosis],
+    groups: Sequence[Sequence[str]],
+) -> None:
+    from ranklens.report import Section, write_report
+    from ranklens.viz import attribution_heatmap
+
+    together = "; ".join("+".join(group) for group in groups) if groups else "none"
+    sections = [
+        Section(
+            f"Drop of {overall.metric} when a feature is shuffled",
+            text=f"groups shuffled together: {together}",
+            table=[{"feature": label, "drop": drop} for label, drop in overall.ranked()],
+        ),
+        Section(
+            f"The {len(worst)} worst queries",
+            text="negative: shuffling the feature improves the ranking, it misleads the model",
+            table=[
+                {
+                    "query": d.query_id,
+                    overall.metric: d.value,
+                    "causes": ", ".join(f"{f} {v:+.3f}" for f, v in d.causes[:3]),
+                }
+                for d in worst
+            ],
+            figure=attribution_heatmap(worst) if _charts(args) else None,
+        ),
+    ]
+    write_report(args.report, "ranklens explain", sections)

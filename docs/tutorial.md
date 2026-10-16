@@ -179,6 +179,22 @@ q112             0.8953  bm25+bm25_title +0.268, freshness +0.187, price +0.055
 с `--allow-pickle`, см. SECURITY.md). Из Python то же: `ranklens.explain.listwise`,
 `diagnose`, а для одной пары документов — `pairwise`.
 
+## Шаг 5. Отчёт
+
+У `compare`, `explain` и `offpolicy` есть `--report`: HTML — один файл со всеми графиками,
+который открывается без интернета (plotly.js встроен один раз), Markdown — те же таблицы
+без графиков, для пулл-реквеста или вики.
+
+```bash
+ranklens compare --baseline a.csv --candidate b.csv --qrels qrels.csv \
+    --metrics ndcg@5 ndcg@10 mrr@10 --segments device locale --report compare.html
+```
+
+В отчёте сравнения: таблица, покрытие разметкой, разница по сегментам с интервалами
+(значимые после BH — цветом), распределение поразапросных разниц (хвосты важнее
+среднего), метрика по cutoff и куда переместились документы из топ-10. Файл пишется
+атомарно: при ошибке остаётся прежний отчёт, а не половина нового.
+
 ## Что дальше
 
 - [Своя метрика](howto/custom-metric.md) — как добавить свою и подключить её плагином.
