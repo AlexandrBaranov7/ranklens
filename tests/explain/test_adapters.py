@@ -78,6 +78,25 @@ def test_sklearn_without_importance_and_with_names(
     assert adapter.native_importance() is None  # coefficients are not an importance
 
 
+def test_sklearn_classifiers_score_with_the_margin_or_the_probability(
+    data: tuple[np.ndarray, np.ndarray, np.ndarray],
+) -> None:
+    linear = library("sklearn.linear_model")
+    ensemble = library("sklearn.ensemble")
+    features, relevance, _ = data
+    logistic = linear.LogisticRegression().fit(features, relevance > 1)
+    np.testing.assert_allclose(
+        adapt(logistic).score(features), logistic.decision_function(features)
+    )
+    forest = ensemble.RandomForestClassifier(n_estimators=10, random_state=0)
+    forest.fit(features, relevance > 1)
+    scores = adapt(forest).score(features)
+    np.testing.assert_allclose(scores, forest.predict_proba(features)[:, 1])
+    multiclass = linear.LogisticRegression().fit(features, relevance)
+    with pytest.raises(ValueError, match=r"4 values per document \(a multiclass model"):
+        adapt(multiclass).score(features)
+
+
 def test_catboost(data: tuple[np.ndarray, np.ndarray, np.ndarray]) -> None:
     catboost = library("catboost")
     features, relevance, groups = data
