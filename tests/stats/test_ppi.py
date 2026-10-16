@@ -84,6 +84,15 @@ def test_no_spread_at_all_gives_p_value_one() -> None:
     assert (same.delta, same.p_value, same.significant) == (0.0, 1.0, False)
 
 
+def test_no_spread_and_a_difference_is_significant() -> None:
+    """Regression: every gold delta equal and nonzero used to give p = 1."""
+    same_a = result({f"g{i}": 0.5 for i in range(40)})
+    same_b = result({f"g{i}": 0.55 for i in range(40)})
+    estimate = ppi_compare(same_a, same_b, same_a, same_b)
+    assert estimate.delta == pytest.approx(0.05)
+    assert (estimate.p_value, estimate.significant) == (0.0, True)
+
+
 def test_adjust_fills_q_values_of_ppi_comparisons() -> None:
     (adjusted,) = adjust([ppi_compare(PROXY_A, PROXY_B, GOLD_A, GOLD_B, lam=0.0)])
     assert adjusted.q_value == adjusted.p_value

@@ -84,7 +84,10 @@ def ppi_compare(
 
     delta, variance = _estimate(g, p_g, p_u, weight)
     half = _NORMAL.inv_cdf(1.0 - alpha / 2.0) * math.sqrt(variance)
-    p_value = 2.0 * (1.0 - _NORMAL.cdf(abs(delta) / math.sqrt(variance))) if variance else 1.0
+    if variance > 0:
+        p_value = 2.0 * (1.0 - _NORMAL.cdf(abs(delta) / math.sqrt(variance)))
+    else:  # no spread at all: the difference is exactly what was measured
+        p_value = 1.0 if delta == 0 else 0.0
     mean_a = _estimate(
         _array(gold_a.per_query, queries_g),
         _array(proxy_a.per_query, queries_g),
