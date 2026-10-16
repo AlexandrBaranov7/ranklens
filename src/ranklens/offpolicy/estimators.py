@@ -52,6 +52,47 @@ def estimate(
     falls below 10% of their number: then a handful of rewards at deep positions
     decide the estimate, and its interval is not to be trusted.
     """
+    return _run(log, policy, propensity, discount, estimators, clip, alpha)
+
+
+def ips(
+    log: Iterable[Impression],
+    policy: Mapping[QueryId, RankedList],
+    propensity: Propensity,
+    discount: Discount,
+    *,
+    clip: float | None = None,
+    alpha: float = 0.05,
+) -> OffPolicyEstimate:
+    """Expected discounted reward of ``policy``: mean over impressions of Σ c·λ/p."""
+    (result,) = _run(log, policy, propensity, discount, ("ips",), clip, alpha)
+    return result
+
+
+def snips(
+    log: Iterable[Impression],
+    policy: Mapping[QueryId, RankedList],
+    propensity: Propensity,
+    discount: Discount,
+    *,
+    clip: float | None = None,
+    alpha: float = 0.05,
+) -> OffPolicyEstimate:
+    """Share of the reweighted reward of the shown documents that ``policy`` collects."""
+    (result,) = _run(log, policy, propensity, discount, ("snips",), clip, alpha)
+    return result
+
+
+def _run(
+    log: Iterable[Impression],
+    policy: Mapping[QueryId, RankedList],
+    propensity: Propensity,
+    discount: Discount,
+    estimators: Sequence[Estimator],
+    clip: float | None,
+    alpha: float,
+) -> tuple[OffPolicyEstimate, ...]:
+    """Shared body of the public functions, which all call it directly (see the warning)."""
     _check_alpha(alpha)
     unknown = set(estimators) - {"ips", "snips"}
     if unknown or not estimators:
@@ -66,42 +107,10 @@ def estimate(
     )
 
 
-def ips(
-    log: Iterable[Impression],
-    policy: Mapping[QueryId, RankedList],
-    propensity: Propensity,
-    discount: Discount,
-    *,
-    clip: float | None = None,
-    alpha: float = 0.05,
-) -> OffPolicyEstimate:
-    """Expected discounted reward of ``policy``: mean over impressions of Σ c·λ/p."""
-    (result,) = estimate(
-        log, policy, propensity, discount, estimators=("ips",), clip=clip, alpha=alpha
-    )
-    return result
-
-
-def snips(
-    log: Iterable[Impression],
-    policy: Mapping[QueryId, RankedList],
-    propensity: Propensity,
-    discount: Discount,
-    *,
-    clip: float | None = None,
-    alpha: float = 0.05,
-) -> OffPolicyEstimate:
-    """Share of the reweighted reward of the shown documents that ``policy`` collects."""
-    (result,) = estimate(
-        log, policy, propensity, discount, estimators=("snips",), clip=clip, alpha=alpha
-    )
-    return result
-
-
 def _ips(sums: "_Sums", clip: float | None, alpha: float) -> OffPolicyEstimate:
     mean = sums.u / sums.n
     variance = (sums.uu - sums.n * mean**2) / (sums.n - 1)
-    return _estimate("ips", mean, variance / sums.n, sums, clip, alpha)
+    return _result("ips", mean, variance / sums.n, sums, clip, alpha)
 
 
 def _snips(sums: "_Sums", clip: float | None, alpha: float) -> OffPolicyEstimate:
@@ -111,7 +120,7 @@ def _snips(sums: "_Sums", clip: float | None, alpha: float) -> OffPolicyEstimate
     # delta method: Var(R) ≈ Var(u - R·v) / (n · mean(v)²)
     residual = sums.uu - 2 * ratio * sums.uv + ratio**2 * sums.vv
     variance = residual / (sums.n - 1) / (sums.n * (sums.v / sums.n) ** 2)
-    return _estimate("snips", ratio, variance, sums, clip, alpha)
+    return _result("snips", ratio, variance, sums, clip, alpha)
 
 
 def _warn_if_degenerate(sums: "_Sums") -> None:
@@ -123,7 +132,8 @@ def _warn_if_degenerate(sums: "_Sums") -> None:
                 "a few rewards at deep positions decide the estimate; consider clip or "
                 "check the propensities",
                 DegenerateWeightsWarning,
-                stacklevel=3,
+                # past this helper, _run and the public function, to the caller's line
+                stacklevel=4,
             )
 
 
@@ -188,7 +198,7 @@ def _accumulate(
     return sums
 
 
-def _estimate(
+def _result(
     name: Estimator,
     value: float,
     variance: float,

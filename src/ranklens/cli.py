@@ -129,7 +129,9 @@ def build_parser() -> argparse.ArgumentParser:
     run_offpolicy.add_argument(
         "--estimators", nargs="+", choices=["ips", "snips"], default=["ips", "snips"]
     )
-    run_offpolicy.add_argument("--clip", type=float, help="cap the weights 1/p at this value")
+    run_offpolicy.add_argument(
+        "--clip", type=_weight_cap, help="cap the weights 1/p at this value (>= 1)"
+    )
     run_offpolicy.add_argument("--alpha", type=_probability, default=0.05)
     run_offpolicy.add_argument("--strict", action="store_true")
     run_offpolicy.add_argument("--format", choices=["table", "json"], default="table")
@@ -162,6 +164,15 @@ def _non_negative(text: str) -> float:
     value = float(text)
     if not value >= 0.0:
         raise argparse.ArgumentTypeError(f"must be >= 0, got {text}")
+    return value
+
+
+def _weight_cap(text: str) -> float:
+    value = float(text)
+    if not value >= 1.0:
+        raise argparse.ArgumentTypeError(
+            f"must be >= 1 (a weight 1/p is never below 1), got {text}"
+        )
     return value
 
 
