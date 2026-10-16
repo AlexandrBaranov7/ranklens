@@ -98,7 +98,10 @@ class LightGBMAdapter(_Adapter):
 
     def __init__(self, model: Any, feature_names: Sequence[str] | None = None) -> None:
         self._booster = getattr(model, "booster_", model)
-        super().__init__(model, list(self._booster.feature_name()), feature_names)
+        known = list(self._booster.feature_name())
+        if known == [f"Column_{i}" for i in range(len(known))]:
+            known = list(default_names(len(known)))  # trained without names: Column_0, ...
+        super().__init__(model, known, feature_names)
 
     def _raw(self, matrix: Features) -> object:
         return self._booster.predict(matrix, raw_score=True)
