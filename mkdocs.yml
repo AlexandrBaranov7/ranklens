@@ -45,6 +45,7 @@ nav:
       - ranklens.aggregate: api/aggregate.md
       - ranklens.offpolicy: api/offpolicy.md
       - ranklens.explain: api/explain.md
+      - ranklens.report: api/report.md
       - ranklens.core: api/core.md
 
 plugins:
