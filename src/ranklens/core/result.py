@@ -186,7 +186,8 @@ class WeightDiagnostics:
 
     ``ess`` = (Σw)² / Σw²; ``ess_share`` = ess / n_weights — near 1 when the weights
     are alike, near 0 when a few dominate. ``top1_mass`` is the share of the total
-    weight held by the largest 1% of weights.
+    weight held by the largest 1% of weights. ``weights`` are the weights themselves,
+    one per rewarded document, for plotting their distribution.
     """
 
     n_weights: int
@@ -197,6 +198,7 @@ class WeightDiagnostics:
     top1_mass: float
     n_clipped: int
     clip: float | None = None
+    weights: tuple[float, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

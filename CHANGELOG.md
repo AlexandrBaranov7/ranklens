@@ -7,6 +7,8 @@
 
 ### Added
 
+- `ranklens.viz`: `metric_vs_k`, `segment_gains`, `delta_distribution`, `rank_flow`,
+  `attribution_heatmap`, `propensity_diagnostics`; `WeightDiagnostics.weights`.
 - `ranklens.report.AtomicReport`: отчёт записывается целиком или не записывается вовсе.
 - Команда `ranklens explain`: вклад признаков в метрику, группы коррелированных признаков
   и худшие запросы с причинами; `ranklens.explain.diagnose`, `load_model`;

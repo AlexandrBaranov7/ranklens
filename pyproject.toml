@@ -98,7 +98,7 @@ enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
 [[tool.mypy.overrides]]
 module = [
   "pyarrow", "pyarrow.*", "catboost", "lightgbm", "xgboost", "sklearn", "sklearn.*",
-  "torch", "torch.*", "onnx", "onnx.*", "onnxruntime",
+  "torch", "torch.*", "onnx", "onnx.*", "onnxruntime", "plotly", "plotly.*",
 ]
 ignore_missing_imports = true
 
