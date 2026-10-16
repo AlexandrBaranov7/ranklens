@@ -34,6 +34,7 @@ from ranklens.core.result import (
     Evaluation,
     MetricResult,
     OffPolicyEstimate,
+    PairAttribution,
     PPIComparison,
     WeightDiagnostics,
 )
@@ -64,6 +65,7 @@ __all__ = [
     "ModelError",
     "OffPolicyEstimate",
     "PPIComparison",
+    "PairAttribution",
     "PluginWarning",
     "Qrels",
     "QueryId",
