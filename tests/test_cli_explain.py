@@ -152,3 +152,15 @@ def test_invalid_arguments(files: dict[str, Path], option: tuple[str, str]) -> N
     with pytest.raises(SystemExit) as exc:
         main([*run(files), *option])
     assert exc.value.code == EXIT_USAGE
+
+
+@pytest.mark.parametrize("suffix", [".md", ".html"])
+def test_report(files: dict[str, Path], tmp_path: Path, suffix: str) -> None:
+    if suffix == ".html":
+        pytest.importorskip("plotly")
+    report = tmp_path / f"explain{suffix}"
+    assert main([*run(files, "named", "--top-worst", "4"), "--report", str(report)]) == EXIT_OK
+    text = report.read_text(encoding="utf-8")
+    assert "bm25+bm25_title" in text
+    assert "worst queries" in text
+    assert ('class="plotly-graph-div"' in text) == (suffix == ".html")

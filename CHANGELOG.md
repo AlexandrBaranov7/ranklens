@@ -7,6 +7,8 @@
 
 ### Added
 
+- HTML- и Markdown-отчёты (`ranklens.report`), флаг `--report` у `compare`, `explain`,
+  `offpolicy`: самодостаточный HTML со всеми графиками.
 - `ranklens.viz`: `metric_vs_k`, `segment_gains`, `delta_distribution`, `rank_flow`,
   `attribution_heatmap`, `propensity_diagnostics`; `WeightDiagnostics.weights`.
 - `ranklens.report.AtomicReport`: отчёт записывается целиком или не записывается вовсе.

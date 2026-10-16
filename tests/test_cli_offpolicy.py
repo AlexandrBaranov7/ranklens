@@ -121,3 +121,15 @@ def test_invalid_arguments_use_argparse_code(
     with pytest.raises(SystemExit) as exc:
         main(args(files, *option))
     assert exc.value.code == EXIT_USAGE
+
+
+@pytest.mark.parametrize("suffix", [".md", ".html"])
+def test_report(files: dict[str, str], tmp_path: Path, suffix: str) -> None:
+    if suffix == ".html":
+        pytest.importorskip("plotly")
+    report = tmp_path / f"offpolicy{suffix}"
+    assert main([*args(files, "--metric", "dcg@10"), "--report", str(report)]) == EXIT_OK
+    text = report.read_text(encoding="utf-8")
+    assert "snips is a share" in text
+    assert "ESS" in text
+    assert ("Weights 1/p" in text) == (suffix == ".html")

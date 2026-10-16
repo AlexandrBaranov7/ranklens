@@ -208,3 +208,60 @@ def test_a_gap_in_coverage_is_warned_about(
     assert main(compare_args(files, "--metrics", "mrr@5")) == EXIT_OK
     err = capsys.readouterr().err
     assert "judged@5 differs between the runs (baseline 0.40, candidate 0.20)" in err
+
+
+# --- reports -------------------------------------------------------------------
+
+
+def test_markdown_report_needs_no_plotly(
+    files: dict[str, str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    report = tmp_path / "compare.md"
+    args = compare_args(files, "--metrics", "mrr", "--segments", "device", "locale")
+    assert main([*args, "--report", str(report)]) == EXIT_OK
+    text = report.read_text(encoding="utf-8")
+    assert text.startswith("# ranklens compare")
+    assert "| metric |" in text
+    assert "judged" in text
+    assert "baseline.csv (A) vs candidate.csv (B)" in text
+
+
+def test_html_report_has_every_chart(files: dict[str, str], tmp_path: Path) -> None:
+    pytest.importorskip("plotly")
+    report = tmp_path / "compare.html"
+    metrics = ("--metrics", "mrr@3", "mrr@5", "ndcg@5")
+    args = compare_args(files, *metrics, "--segments", "device", "locale")
+    assert main([*args, "--report", str(report)]) == EXIT_OK
+    text = report.read_text(encoding="utf-8")
+    # 3 segment charts, 3 delta distributions, mrr by cutoff (ndcg has one), rank flow
+    assert text.count('class="plotly-graph-div"') == 8
+    assert text.count("plotly.js v") == 1
+    plain = tmp_path / "plain.html"
+    assert main([*compare_args(files, "--metrics", "mrr"), "--report", str(plain)]) == EXIT_OK
+    assert "by segment" not in plain.read_text(encoding="utf-8")
+
+
+def test_report_extension_is_checked_before_work(files: dict[str, str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main([*compare_args(files, "--metrics", "mrr"), "--report", "out.pdf"])
+    assert exc.value.code == EXIT_USAGE
+
+
+def test_html_report_skips_segments_too_small_to_compare(tmp_path: Path) -> None:
+    pytest.importorskip("plotly")
+    # every query is its own segment: all are below the minimum and none is compared
+    qrels = ["query_id,doc_id,relevance"] + [f"q{i},rel,1" for i in range(25)]
+    run = ["query_id,doc_id,bucket"]
+    for i in range(25):
+        run += [f"q{i},other,b{i}", f"q{i},rel,b{i}"]
+    paths = {}
+    for name, lines in (("qrels", qrels), ("run", run)):
+        paths[name] = tmp_path / f"{name}.csv"
+        paths[name].write_text("\n".join(lines) + "\n", encoding="utf-8")
+    report = tmp_path / "compare.html"
+    args = ["compare", "--baseline", str(paths["run"]), "--candidate", str(paths["run"])]
+    args += ["--qrels", str(paths["qrels"]), "--metrics", "mrr", "--segments", "bucket", *FAST]
+    assert main([*args, "--report", str(report)]) == EXIT_OK
+    text = report.read_text(encoding="utf-8")
+    assert "by segment" not in text
+    assert text.count('class="plotly-graph-div"') == 2  # delta distribution, rank flow
