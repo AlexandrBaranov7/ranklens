@@ -90,12 +90,19 @@ def test_same_seed_same_result() -> None:
     [
         ([1.0, 2.0], [1.0, 2.0, 3.0], {}, "expected 3 feature columns, got 2"),
         (np.zeros(15), np.ones(15), {"n_permutations": 0}, "n_permutations must be >= 1"),
+        (np.zeros((2, 3)), np.ones(3), {}, r"one document each, got shape \(2, 3\)"),
     ],
 )
 def test_invalid_input(a: object, b: object, kwargs: dict[str, int], message: str) -> None:
     width = len(np.asarray(b))
     with pytest.raises(ValueError, match=message):
         pairwise(linear(np.ones(width)), a, b, **kwargs)  # type: ignore[arg-type]
+
+
+def test_a_single_row_is_a_document() -> None:
+    model = linear(np.array([1.0, 2.0, 3.0]))
+    as_row = pairwise(model, [[1.0, 2.0, 3.0]], [[1.0, 2.0, 4.0]])
+    assert as_row == pairwise(model, [1.0, 2.0, 3.0], [1.0, 2.0, 4.0])
 
 
 def library(name: str) -> ModuleType:
