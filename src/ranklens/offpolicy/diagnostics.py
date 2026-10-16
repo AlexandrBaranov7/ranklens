@@ -46,4 +46,5 @@ def weight_diagnostics(
         top1_mass=float(top.sum() / weights.sum()),
         n_clipped=int((raw > clip).sum()) if clip is not None else 0,
         clip=clip,
+        weights=tuple(weights.tolist()),
     )

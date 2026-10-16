@@ -76,8 +76,8 @@ jobs:
       - run: poetry install
       - run: poetry run pytest -m slow
 
-  # model libraries are heavy, LightGBM/XGBoost need OpenMP: one Linux job runs them,
-  # the matrix skips their tests
+  # model libraries and plotly are heavy, LightGBM/XGBoost need OpenMP: one Linux job
+  # runs their tests, the matrix skips them
   models:
     runs-on: ubuntu-latest
     steps:
@@ -87,10 +87,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: poetry
-      - run: poetry install --extras "models neural"
+      - run: poetry install --extras "models neural viz"
       # torch stays out of the lock: from PyPI on Linux it pulls gigabytes of CUDA libraries
       - run: poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - run: poetry run pytest tests/explain -rs
+      - run: poetry run pytest tests/explain tests/viz -rs
         env:
           RANKLENS_REQUIRE_MODELS: "1"
 
