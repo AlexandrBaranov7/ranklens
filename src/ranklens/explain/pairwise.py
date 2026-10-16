@@ -36,7 +36,7 @@ def pairwise(
     ``seed`` are used only when there are more than ``EXACT_MAX_FEATURES`` features.
     """
     names = model.feature_names
-    x_a, x_b = (as_features(np.atleast_2d(np.asarray(x, dtype=float)), names)[0] for x in (a, b))
+    x_a, x_b = (_document(x, names) for x in (a, b))
     k = len(names)
     if k <= EXACT_MAX_FEATURES:
         contributions = _exact(model, x_a, x_b)
@@ -90,3 +90,14 @@ def _sampled(
     phi = np.zeros(k)
     np.add.at(phi, orders.ravel(), steps.ravel())
     return phi / n_permutations
+
+
+def _document(x: npt.ArrayLike, names: tuple[str, ...]) -> np.ndarray:
+    """One document's feature vector; a matrix of several documents is a mistake, not row 0."""
+    vector = np.asarray(x, dtype=float)
+    if vector.ndim == 2 and vector.shape[0] == 1:
+        vector = vector[0]
+    if vector.ndim != 1:
+        raise ValueError(f"a and b are one document each, got shape {vector.shape}")
+    row: np.ndarray = as_features(vector[None, :], names)[0]
+    return row
