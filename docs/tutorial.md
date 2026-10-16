@@ -141,6 +141,44 @@ print(", ".join(registry.names()))
 - `rbp(p=0.95)` — «терпеливый» пользователь;
 - `err(max_rel=3)@20` — шкала релевантности 0…3.
 
+## Шаг 4. Понять, где модель ошибается
+
+Метрика упала — где и почему? Нужны модель и таблица признаков: `query_id, doc_id,
+relevance` и по колонке на признак (как в датасетах learning-to-rank).
+
+```bash
+ranklens explain --model model.cbm --features features.csv --top-worst 8
+```
+
+```text
+ndcg@10 over 120 queries: mean 0.9857
+groups shuffled together: bm25+bm25_title
+
+feature                        drop of ndcg@10 when shuffled
+bm25+bm25_title                +0.3072
+freshness                      +0.0558
+price                          +0.0144
+
+worst 8 queries (negative: the feature misleads the model):
+q000             0.8388  freshness +0.272, bm25+bm25_title +0.162, price +0.099
+q112             0.8953  bm25+bm25_title +0.268, freshness +0.187, price +0.055
+...
+```
+
+- **Вклад — в метрику, а не в скор:** признак перемешивается среди документов запроса,
+  документы сортируются заново, и меряется, насколько упал NDCG.
+- **Коррелированные признаки перемешиваются вместе** (два варианта BM25 выше): по одному
+  каждый выглядел бы неважным, потому что второй подменяет его.
+- **Худшие запросы** с их причинами. Здесь все восемь — «новостные», где по построению
+  решает свежесть: модель, обученная на всех запросах сразу, недооценивает её именно там.
+  Отрицательный вклад значит, что перемешивание признака **улучшает** выдачу — модель
+  доверяет признаку, который на этом запросе её обманывает.
+
+Модели: CatBoost (`.cbm`), LightGBM (`.txt`), XGBoost (`.ubj`, `.json`), ONNX (`.onnx`,
+в том числе экспорт из PyTorch, TensorFlow, Keras) и scikit-learn (`.pkl` — только
+с `--allow-pickle`, см. SECURITY.md). Из Python то же: `ranklens.explain.listwise`,
+`diagnose`, а для одной пары документов — `pairwise`.
+
 ## Что дальше
 
 - [Своя метрика](howto/custom-metric.md) — как добавить свою и подключить её плагином.

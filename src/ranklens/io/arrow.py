@@ -46,6 +46,17 @@ def iter_arrow_records(
         yield from _rows(batches, required, name, on_error)
 
 
+def arrow_column_names(source: Any, fmt: str) -> list[str]:
+    """Column names of a parquet or Feather file, read from its schema only."""
+    pa = _import_pyarrow()
+    if fmt == "parquet":
+        import pyarrow.parquet as pq
+
+        return list(pq.read_schema(source).names)
+    with Path(source).open("rb") as fh:
+        return list(pa.ipc.open_file(fh).schema.names)
+
+
 def _import_pyarrow() -> Any:
     try:
         import pyarrow

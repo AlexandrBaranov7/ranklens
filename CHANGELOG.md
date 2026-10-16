@@ -7,6 +7,9 @@
 
 ### Added
 
+- Команда `ranklens explain`: вклад признаков в метрику, группы коррелированных признаков
+  и худшие запросы с причинами; `ranklens.explain.diagnose`, `load_model`;
+  ридер таблиц признаков `ranklens.io.read_feature_table`.
 - `ranklens.explain.listwise` — перестановочная важность признаков по метрике,
   `correlated_groups` — группы коррелированных признаков, `QueryFeatures`.
 - `ranklens.explain.pairwise`: почему документ B выше A — значения Шепли по признакам

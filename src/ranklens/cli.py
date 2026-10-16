@@ -23,8 +23,10 @@ from ranklens.core.result import (
     ComparisonResult,
     ErrorSummary,
     Evaluation,
+    ListwiseAttribution,
     MetricResult,
     OffPolicyEstimate,
+    QueryDiagnosis,
 )
 from ranklens.core.types import Qrels
 from ranklens.io import (
@@ -34,6 +36,7 @@ from ranklens.io import (
     detect_format,
     iter_clicklog,
     iter_run,
+    read_feature_table,
     read_qrels,
 )
 from ranklens.metrics import evaluate, registry, resolve
@@ -146,6 +149,48 @@ def build_parser() -> argparse.ArgumentParser:
     run_offpolicy.add_argument("--strict", action="store_true")
     run_offpolicy.add_argument("--format", choices=["table", "json"], default="table")
     run_offpolicy.set_defaults(handler=_run_offpolicy)
+
+    run_explain = commands.add_parser(
+        "explain",
+        help="explain which features move the metric, and where the model does worst",
+        description=(
+            "Permutation importance of the features on the metric (features shuffled within "
+            "queries, correlated ones together), then the queries with the lowest metric and "
+            "the features that move each of them. A negative drop means that shuffling the "
+            "feature improves the ranking: the model is misled by it on that query."
+        ),
+    )
+    run_explain.add_argument("--model", required=True, type=Path, help="saved model file")
+    run_explain.add_argument(
+        "--model-kind",
+        choices=["catboost", "lightgbm", "xgboost", "onnx", "pickle"],
+        help="model format when the file extension does not tell",
+    )
+    run_explain.add_argument(
+        "--allow-pickle",
+        action="store_true",
+        help="allow a pickled model: it runs code from the file (see SECURITY.md)",
+    )
+    run_explain.add_argument(
+        "--features",
+        required=True,
+        type=Path,
+        help="table: query_id, doc_id, relevance and one column per feature",
+    )
+    run_explain.add_argument("--metric", default="ndcg@10", metavar="SPEC")
+    run_explain.add_argument("--top-worst", type=_positive, default=20, metavar="N")
+    run_explain.add_argument(
+        "--group-threshold",
+        type=_probability,
+        default=0.8,
+        help="|correlation| from which features are shuffled together (default 0.8)",
+    )
+    run_explain.add_argument("--no-groups", action="store_true", help="every feature alone")
+    run_explain.add_argument("--repeats", type=_positive, default=5, help="shuffles per feature")
+    run_explain.add_argument("--seed", type=int, default=0)
+    run_explain.add_argument("--strict", action="store_true")
+    run_explain.add_argument("--format", choices=["table", "json"], default="table")
+    run_explain.set_defaults(handler=_run_explain)
 
     list_metrics = commands.add_parser(
         "metrics",
@@ -585,3 +630,109 @@ def _offpolicy_json(
 
 def _finite_or_none(value: float) -> float | None:
     return None if math.isnan(value) else value
+
+
+def _run_explain(args: argparse.Namespace) -> int:
+    from ranklens.explain import (
+        CallableAdapter,
+        QueryFeatures,
+        adapt,
+        correlated_groups,
+        diagnose,
+        listwise,
+        load_model,
+    )
+
+    metric = resolve(args.metric)
+    errors = ErrorCollector()
+    table = read_feature_table(args.features, strict=args.strict, errors=errors)
+    model = load_model(args.model, kind=args.model_kind, allow_pickle=args.allow_pickle)
+    adapter = adapt(model)
+    names = list(adapter.feature_names)
+    by_position = names == [f"f{i}" for i in range(len(names))]
+    if by_position:
+        # trained without names: the table's columns are taken in their order
+        if len(names) != len(table.feature_names):
+            raise ConfigError(
+                f"the model has {len(names)} features, the table {len(table.feature_names)}"
+            )
+        # named by the table for any model, an adapter loaded from a pickle included;
+        # the native importance is not used by this command, so it is not carried over
+        adapter = CallableAdapter(adapter.score, table.feature_names)
+        columns = list(range(len(names)))
+    else:
+        missing = [name for name in names if name not in table.feature_names]
+        if missing:
+            raise ConfigError(f"features of the model missing from the table: {missing}")
+        columns = [table.feature_names.index(name) for name in names]
+    queries = [
+        QueryFeatures.from_rows(q.query_id, q.docs, q.rows, dict(q.judgements), columns)
+        for q in table.queries
+    ]
+    groups = (
+        ()
+        if args.no_groups
+        else correlated_groups(queries, adapter.feature_names, threshold=args.group_threshold)
+    )
+    common = {"groups": groups, "n_repeats": args.repeats, "seed": args.seed}
+    overall = listwise(adapter, queries, metric, **common)
+    worst = diagnose(adapter, queries, metric, top=args.top_worst, **common)
+    skipped = errors.snapshot()
+    if args.format == "json":
+        print(_explain_json(overall, worst, groups, by_position, skipped))
+    else:
+        print(_explain_table(overall, worst, groups, by_position, len(queries)))
+    if skipped.total:
+        print(f"ranklens: warning: {skipped}", file=sys.stderr)
+    return EXIT_OK
+
+
+def _explain_table(
+    overall: ListwiseAttribution,
+    worst: Sequence[QueryDiagnosis],
+    groups: Sequence[Sequence[str]],
+    by_position: bool,
+    n_queries: int,
+) -> str:
+    lines = [f"{overall.metric} over {n_queries} queries: mean {overall.baseline.mean:.4f}"]
+    if by_position:
+        lines.append("features taken by position: the model has no feature names")
+    together = "; ".join("+".join(group) for group in groups) if groups else "none"
+    lines += [
+        f"groups shuffled together: {together}",
+        "",
+        f"{'feature':<30} drop of {overall.metric} when shuffled",
+    ]
+    lines += [f"{label:<30} {drop:+.4f}" for label, drop in overall.ranked()]
+    lines += ["", f"worst {len(worst)} queries (negative: the feature misleads the model):"]
+    for diagnosis in worst:
+        causes = ", ".join(f"{label} {drop:+.3f}" for label, drop in diagnosis.causes[:3])
+        lines.append(f"{diagnosis.query_id:<16} {diagnosis.value:.4f}  {causes}")
+    return "\n".join(lines)
+
+
+def _explain_json(
+    overall: ListwiseAttribution,
+    worst: Sequence[QueryDiagnosis],
+    groups: Sequence[Sequence[str]],
+    by_position: bool,
+    skipped: ErrorSummary,
+) -> str:
+    document = {
+        "metric": overall.metric,
+        "mean": _finite_or_none(overall.baseline.mean),
+        "groups": [list(group) for group in groups],
+        "features_by_position": by_position,
+        "drops": [{"feature": label, "drop": drop} for label, drop in overall.ranked()],
+        "worst": [
+            {
+                "query_id": d.query_id,
+                "value": d.value,
+                "causes": [{"feature": label, "drop": drop} for label, drop in d.causes],
+            }
+            for d in worst
+        ],
+        "settings": {"n_repeats": overall.n_repeats, "seed": overall.seed},
+        "data_errors": {"total": skipped.total, "counts": dict(skipped.counts)},
+    }
+    return json.dumps(document, indent=2, ensure_ascii=False)

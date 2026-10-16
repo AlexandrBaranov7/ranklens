@@ -49,3 +49,18 @@ class QueryFeatures:
             np.asarray(features, dtype=np.float64),
             {DocId(d): float(v) for d, v in (judgements or {}).items()},
         )
+
+    @classmethod
+    def from_rows(
+        cls,
+        query_id: QueryId,
+        docs: Sequence[DocId],
+        rows: Sequence[Sequence[float]],
+        judgements: Mapping[DocId, float],
+        columns: Sequence[int] | None = None,
+    ) -> "QueryFeatures":
+        """From plain rows (as a feature table reader gives them), keeping ``columns``."""
+        matrix = np.asarray(rows, dtype=np.float64).reshape(len(docs), -1)
+        return cls(
+            query_id, tuple(docs), matrix if columns is None else matrix[:, columns], judgements
+        )
