@@ -7,6 +7,9 @@
 
 ### Added
 
+- `ranklens.explain.pairwise`: почему документ B выше A — значения Шепли по признакам
+  (точно до 12 признаков, иначе по выборке порядков); результат `PairAttribution`.
+  Страница «Математика → Объяснение пар».
 - Нейросетевые ранкеры на признаках: `TorchAdapter` (`torch.nn.Module`) и `ONNXAdapter`
   (TensorFlow, Keras, JAX через ONNX); extra `neural` с `onnxruntime`.
 - `ranklens.explain`: протокол `ScorerAdapter`, адаптеры CatBoost, LightGBM, XGBoost,
@@ -92,6 +95,7 @@
 
 ### Changed
 
+- Property-тест bootstrap допускает округление в последнем знаке (найдено Hypothesis).
 - CI: задание `models` с extra `models` для тестов адаптеров.
 - CI: статистическая валидация (`-m slow`) — отдельное задание `statistics`, матрица
   тестов её не запускает.

@@ -15,6 +15,7 @@ __all__ = [
     "MetricResult",
     "OffPolicyEstimate",
     "PPIComparison",
+    "PairAttribution",
     "WeightDiagnostics",
 ]
 
@@ -225,3 +226,29 @@ class PPIComparison:
     def significant(self) -> bool:
         """Whether the difference passes ``alpha``; after correction, by ``q_value``."""
         return (self.p_value if self.q_value is None else self.q_value) < self.alpha
+
+
+@dataclass(frozen=True, slots=True)
+class PairAttribution:
+    """Why a model scores document B above (or below) document A, feature by feature.
+
+    ``contributions[i]`` is the Shapley value of feature ``feature_names[i]`` in going
+    from A's features to B's: they add up to ``score_b - score_a`` exactly. ``method``
+    is ``"exact"`` (all subsets) or ``"sampled"`` (``n_permutations`` random orders).
+    """
+
+    feature_names: tuple[str, ...]
+    contributions: tuple[float, ...]
+    score_a: float
+    score_b: float
+    method: str
+    n_permutations: int = 0
+
+    @property
+    def delta(self) -> float:
+        return self.score_b - self.score_a
+
+    def ranked(self) -> tuple[tuple[str, float], ...]:
+        """(feature, contribution) by absolute contribution, largest first."""
+        pairs = zip(self.feature_names, self.contributions, strict=True)
+        return tuple(sorted(pairs, key=lambda pair: -abs(pair[1])))
