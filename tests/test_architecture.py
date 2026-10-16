@@ -20,14 +20,28 @@ LAYERS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "offpolicy": (frozenset({"core", "metrics", "stats"}), frozenset({"numpy", "pandas"})),
     "explain": (
         frozenset({"core", "metrics"}),
-        frozenset({"numpy", "scipy", "catboost", "lightgbm", "xgboost", "sklearn"}),
+        frozenset(
+            {"numpy", "scipy", "catboost", "lightgbm", "xgboost", "sklearn", "torch", "onnxruntime"}
+        ),
     ),
     "aggregate": (frozenset({"core", "metrics", "stats"}), frozenset({"numpy", "pandas"})),
     "viz": (frozenset({"core"}), frozenset({"plotly"})),
     "report": (frozenset({"core", "viz"}), frozenset({"pandas"})),
 }
 TOP_LEVEL_MODULES = frozenset({"__init__", "__main__", "cli"})
-LAZY_ONLY = frozenset({"pyarrow", "scipy", "catboost", "lightgbm", "xgboost", "sklearn", "plotly"})
+LAZY_ONLY = frozenset(
+    {
+        "pyarrow",
+        "scipy",
+        "catboost",
+        "lightgbm",
+        "xgboost",
+        "sklearn",
+        "torch",
+        "onnxruntime",
+        "plotly",
+    }
+)
 
 
 @dataclass(frozen=True)

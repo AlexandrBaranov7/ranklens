@@ -30,6 +30,7 @@ classifiers = [
 arrow = ["pyarrow>=15"]
 viz = ["plotly>=5.18"]
 models = ["catboost", "lightgbm", "xgboost", "scikit-learn"]
+neural = ["onnxruntime>=1.17"]
 
 [project.urls]
 Homepage = "https://github.com/AlexandrBaranov7/ranklens"
@@ -54,6 +55,7 @@ dev = [
   "mkdocs-material>=9.6",
   "mkdocstrings[python]>=0.29",
   "markdown-exec>=1.10",
+  "onnx>=1.16",
 ]
 
 [tool.poetry]
@@ -94,7 +96,10 @@ enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
 
 # pyarrow ships no type information; its use is confined to ranklens.io.arrow
 [[tool.mypy.overrides]]
-module = ["pyarrow", "pyarrow.*", "catboost", "lightgbm", "xgboost", "sklearn", "sklearn.*"]
+module = [
+  "pyarrow", "pyarrow.*", "catboost", "lightgbm", "xgboost", "sklearn", "sklearn.*",
+  "torch", "torch.*", "onnx", "onnx.*", "onnxruntime",
+]
 ignore_missing_imports = true
 
 # --- pytest / coverage --------------------------------------------------

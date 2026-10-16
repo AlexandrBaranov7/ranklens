@@ -7,6 +7,8 @@
 
 ### Added
 
+- Нейросетевые ранкеры на признаках: `TorchAdapter` (`torch.nn.Module`) и `ONNXAdapter`
+  (TensorFlow, Keras, JAX через ONNX); extra `neural` с `onnxruntime`.
 - `ranklens.explain`: протокол `ScorerAdapter`, адаптеры CatBoost, LightGBM, XGBoost,
   scikit-learn и `CallableAdapter`, фабрика `adapt(model)` по MRO.
 - `ranklens.stats.ppi_compare` (PPI++): сравнение прогонов по дешёвой (proxy) разметке
