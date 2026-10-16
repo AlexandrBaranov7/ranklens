@@ -68,7 +68,13 @@ def as_features(features: object, names: Sequence[str]) -> Features:
 
 
 def _scores(raw: object, features: Features) -> Scores:
-    scores = np.asarray(raw, dtype=np.float64).reshape(-1)
+    scores = np.asarray(raw, dtype=np.float64)
+    if scores.ndim == 2 and scores.shape[1] > 1:
+        raise ValueError(
+            f"model returned {scores.shape[1]} values per document (a multiclass model?): "
+            "wrap it with CallableAdapter to say which score ranks, e.g. the expected grade"
+        )
+    scores = scores.reshape(-1)
     if scores.shape[0] != np.shape(features)[0]:
         raise ValueError(f"model returned {scores.shape[0]} scores for {len(features)} documents")
     return scores

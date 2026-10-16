@@ -46,7 +46,11 @@ class _Adapter:
 
 
 class SklearnAdapter(_Adapter):
-    """Any fitted scikit-learn estimator with ``predict``; importance if it has one."""
+    """A fitted scikit-learn estimator; importance if it has one.
+
+    Regressors score with ``predict``; binary classifiers with ``decision_function``
+    or, without it, the probability of the positive class.
+    """
 
     def __init__(self, model: Any, feature_names: Sequence[str] | None = None) -> None:
         if hasattr(model, "feature_names_in_"):
@@ -56,7 +60,12 @@ class SklearnAdapter(_Adapter):
         super().__init__(model, known, feature_names)
 
     def _raw(self, matrix: Features) -> object:
-        return self.model.predict(matrix)
+        if not hasattr(self.model, "classes_"):
+            return self.model.predict(matrix)
+        # a classifier's predict returns labels; the margin (or P(positive)) orders documents
+        if hasattr(self.model, "decision_function"):
+            return self.model.decision_function(matrix)
+        return self.model.predict_proba(matrix)[:, 1:]
 
     def native_importance(self) -> Mapping[str, float] | None:
         importances = getattr(self.model, "feature_importances_", None)
