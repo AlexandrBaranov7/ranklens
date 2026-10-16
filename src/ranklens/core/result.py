@@ -17,6 +17,7 @@ __all__ = [
     "OffPolicyEstimate",
     "PPIComparison",
     "PairAttribution",
+    "QueryDiagnosis",
     "WeightDiagnostics",
 ]
 
@@ -276,3 +277,19 @@ class ListwiseAttribution:
         """(feature, mean drop over queries), the largest drop first."""
         means = zip(self.features, (drop.mean for drop in self.drops), strict=True)
         return tuple(sorted(means, key=lambda pair: -pair[1]))
+
+
+@dataclass(frozen=True, slots=True)
+class QueryDiagnosis:
+    """A query where the model does badly, and which features move its metric.
+
+    ``causes`` are (feature, drop of the metric when the feature is shuffled), largest
+    absolute drop first. A positive drop: the feature helps here. A negative one:
+    shuffling it **improves** the ranking — the model trusts a feature that misleads it
+    on this query, which is usually the finding worth acting on.
+    """
+
+    query_id: QueryId
+    metric: str
+    value: float
+    causes: tuple[tuple[str, float], ...]

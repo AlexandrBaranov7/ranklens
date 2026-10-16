@@ -37,6 +37,7 @@ from ranklens.core.result import (
     OffPolicyEstimate,
     PairAttribution,
     PPIComparison,
+    QueryDiagnosis,
     WeightDiagnostics,
 )
 from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
@@ -70,6 +71,7 @@ __all__ = [
     "PairAttribution",
     "PluginWarning",
     "Qrels",
+    "QueryDiagnosis",
     "QueryId",
     "RankLensError",
     "RankLensWarning",
