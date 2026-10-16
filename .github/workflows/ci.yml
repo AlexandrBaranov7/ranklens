@@ -76,6 +76,22 @@ jobs:
       - run: poetry install
       - run: poetry run pytest -m slow
 
+  # model libraries are heavy and LightGBM/XGBoost need OpenMP: one Linux job runs them,
+  # the matrix skips their tests
+  models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: pipx install "poetry==$POETRY_VERSION"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: poetry
+      - run: poetry install --extras models
+      - run: poetry run pytest tests/explain -rs
+        env:
+          RANKLENS_REQUIRE_MODELS: "1"
+
   install:
     runs-on: ubuntu-latest
     steps:
