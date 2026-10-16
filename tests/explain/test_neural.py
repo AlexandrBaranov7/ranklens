@@ -54,9 +54,10 @@ def test_torch_scores_in_eval_mode_and_restores_the_mode(mlp: Any, features: np.
     adapter = adapt(mlp, NAMES)
     assert type(adapter) is TorchAdapter
     mlp.train()
+    mlp[0].eval()  # a mixed state, as with a frozen part of a model
     first, second = adapter.score(features), adapter.score(features)
     np.testing.assert_array_equal(first, second)  # dropout is off while scoring
-    assert mlp.training  # and the module is left as it was
+    assert [m.training for m in mlp] == [False, True, True, True]  # every mode is kept
     mlp.eval()
     with torch.no_grad():
         expected = mlp(torch.as_tensor(features, dtype=torch.float32)).numpy().ravel()

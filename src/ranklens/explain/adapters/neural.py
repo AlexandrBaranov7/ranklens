@@ -24,7 +24,7 @@ class TorchAdapter:
     """A ``torch.nn.Module`` mapping documents by features to one score per document.
 
     Scored in inference mode without changing the module: ``eval()`` is applied for the
-    call (dropout off, batch norm frozen) and the previous mode is restored after it.
+    call (dropout off, batch norm frozen) and every submodule gets its mode back after it.
     A module knows no feature names, so they are required.
     """
 
@@ -45,13 +45,15 @@ class TorchAdapter:
         parameter = next(self.model.parameters(), None)
         device = parameter.device if parameter is not None else "cpu"
         dtype = parameter.dtype if parameter is not None else torch.float32
-        was_training = self.model.training
+        # per submodule: a frozen encoder may sit in eval inside a model in train mode
+        modes = [(module, module.training) for module in self.model.modules()]
         self.model.eval()
         try:
             with torch.inference_mode():
                 output = self.model(torch.as_tensor(matrix, dtype=dtype, device=device))
         finally:
-            self.model.train(was_training)
+            for module, training in modes:
+                module.training = training
         return _scores(output.detach().to("cpu", torch.float64).numpy(), matrix)
 
     def native_importance(self) -> Mapping[str, float] | None:
