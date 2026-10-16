@@ -807,7 +807,8 @@ V(π) = среднее по запросам Σ_d λ(rank_π(d)) · a(d) — о�
 - **Найдено при тестах на реальных моделях:** у `CatBoostRanker.predict` нет
   `prediction_type` — используется базовый `CatBoost.predict`; важность по умолчанию
   у ранкеров (`LossFunctionChange`) требует датасет — берётся `PredictionValuesChange`;
-  CatBoost без имён называет фичи «0», «1» — приводятся к `f0`, `f1`, как у остальных.
+  CatBoost без имён называет фичи «0», «1», а LightGBM — `Column_0` (нашло задание CI
+  `models`) — приводятся к `f0`, `f1`, как у остальных.
 - **`adapt(model)` — по MRO класса и корневому пакету модуля** (`catboost`, `lightgbm`,
   `xgboost`, `sklearn`): подкласс из пользовательского кода тоже распознаётся, библиотеки
   не импортируются. Новый адаптер — строка в `ADAPTERS`. Неизвестное — `UnsupportedModelError`
