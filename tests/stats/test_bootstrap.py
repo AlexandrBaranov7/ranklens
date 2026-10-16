@@ -122,7 +122,9 @@ def test_result_does_not_depend_on_the_chunk_size(monkeypatch: pytest.MonkeyPatc
 @settings(max_examples=25, deadline=None)
 def test_interval_is_ordered_and_within_the_data(deltas: list[float], alpha: float) -> None:
     interval = paired_bootstrap(deltas, alpha=alpha, n_resamples=200, seed=5)
-    assert min(deltas) <= interval.low <= interval.high <= max(deltas)
+    # a mean of equal floats may exceed them by an ulp: mean(0.8, 0.8, 0.8) = 0.8000000000000002
+    tolerance = 1e-12
+    assert min(deltas) - tolerance <= interval.low <= interval.high <= max(deltas) + tolerance
     assert isinstance(interval, BootstrapInterval)
 
 
