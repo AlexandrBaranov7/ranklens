@@ -95,6 +95,7 @@ extra_css:
 exclude_docs: |
   decisions.md
   llm-log.md
+  defense.md
 
 watch:
   - src
