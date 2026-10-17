@@ -11,82 +11,98 @@ import ranklens as rl
 rl.compare(current, new, qrels, ["ndcg@10"], by="device")
 ```
 
-## Что пригодилось на рабочих задачах
+## Типичные задачи
 
-Перед релизом библиотеку прогнали как пользователь на двух задачах из продакшна.
-Три вещи оказались самыми полезными — с них и стоит начинать.
+Примеры ниже выполняются при сборке этой страницы на синтетическом каталоге: запросы,
+товары и оценки выдуманы, но устроены как в настоящем поиске
+(генератор — `docs/examples/catalog.py`).
 
-### Эффект, невидимый в среднем
+```python exec="on" session="cases"
+import sys
 
-В каталожную модель добавили признак «товар в избранном у пользователя». Обучили по два
-сида старой и новой модели и сравнили по сегментам:
+import pandas as pd
 
-```python
-rl.compare([base_s0, base_s1], [flag_s0, flag_s1], qrels, ["ndcg@10"], by="has_flag")
+sys.path.insert(0, "docs/examples")
+pd.set_option("display.width", 120)
 ```
 
-| сегмент | запросов | Δ NDCG@10 | 95% интервал | MDE |
-|---|---|---|---|---|
-| все запросы | 100% | +0.0004 | [+0.0002; +0.0006] | 0.0003 |
-| есть избранное | 2.8% | **+0.0147** | [+0.0117; +0.0177] | 0.004 |
+Данные — обычная таблица с одной строкой на пару «запрос — товар»: оценка асессора,
+признаки и скоры моделей.
 
-В среднем эффект на пределе чувствительности — его легко списать на шум. Разбивка
-показала, где он: там, где признак вообще есть, он большой, а на остальных запросах
-потерь нет. Сиды усредняются по запросу, поэтому разница между ними не выдаётся
-за эффект.
+```python exec="on" session="cases" source="block" result="text"
+import ranklens as rl
+from catalog import searches  # синтетический каталог
 
-### Две выдачи размечены разными партиями асессоров
-
-Текущую выдачу витрины сравнивали с новой: другой кандидатогенератор, а значит и другое
-ранжирование. Каждую выдачу размечала своя партия краудсорсинга.
-
-```python
-rl.agreement(batch_cur, batch_new)  # 75% совпадений, вторая партия мягче на 0.05
-qrels = rl.merge_qrels(batch_cur, batch_new)  # одна разметка для обеих сторон
-rl.compare(current, new, qrels, ["ndcg@5", "ndcg@10", "err@10"])
+df = searches()
+print(df[["query", "product", "grade", "history", "base_s0", "new_s0"]].head(5).round(2))
 ```
 
-На «своих» оценках разница партий смешалась бы с разницей систем. На общей разметке
-NDCG@10 значимо выше (q = 0.034), а NDCG@5 и ERR@10 — нет: новые кандидаты делают
-выдачу полнее и улучшают позиции 5–10, а первые карточки не изменились. Какая метрика
-главная — решает то, сколько карточек реально смотрят.
+### Эффект виден только в сегменте
+
+Новая модель знает, покупал ли пользователь товар раньше. Такой признак есть только
+у пользователей с историей покупок — это около 9% запросов. У каждой модели два сида
+обучения: они усредняются по запросу, чтобы шум обучения не выдавался за эффект.
+
+```python exec="on" session="cases" source="block" result="text"
+qrels = rl.qrels(df, query="query", doc="product", relevance="grade")
+
+
+def run(score):
+    return rl.run(df, query="query", doc="product", score=score, segments="history")
+
+
+base, new = [run("base_s0"), run("base_s1")], [run("new_s0"), run("new_s1")]
+
+columns = ["n_queries", "delta", "ci_low", "ci_high", "mde", "q_value"]
+print(rl.compare(base, new, qrels, ["ndcg@10"]).table[columns].round(4), "\n")
+print(rl.compare(base, new, qrels, ["ndcg@10"], by="history").table[columns].round(4))
+```
+
+В среднем прирост не отличим от нуля и меньше MDE — минимального эффекта, который эти
+запросы вообще способны показать. Разбивка находит, где он: там, где признак есть,
+прирост значимый и после поправки на число сегментов (q-value), а на остальных
+запросах потерь нет.
+
+### Две версии выдачи размечены разными партиями асессоров
+
+Новая версия поиска находит больше подходящих товаров. Каждую выдачу оценивала своя
+партия асессоров — сначала проверяем, согласны ли они между собой.
+
+```python exec="on" session="cases" source="block" result="text"
+from catalog import two_versions
+
+current_df, new_df = two_versions()
+batch_cur = rl.qrels(current_df, query="query", doc="product", relevance="grade")
+batch_new = rl.qrels(new_df, query="query", doc="product", relevance="grade")
+print(rl.agreement(batch_cur, batch_new), "\n")
+
+both = rl.merge_qrels(batch_cur, batch_new)  # одна разметка для обеих сторон
+current = rl.run(current_df, query="query", doc="product", rank="pos")
+new_version = rl.run(new_df, query="query", doc="product", rank="pos")
+result = rl.compare(current, new_version, both, ["ndcg@5", "ndcg@10", "err@10"])
+print(result.table[columns].round(4))
+```
+
+Вторая партия ставит оценки мягче, и на «своих» оценках эта разница смешалась бы
+с разницей версий — поэтому сравниваем на общей разметке. NDCG@10 значимо выше, а
+NDCG@5 и ERR@10, которые смотрят в основном на верх выдачи, — нет: новые товары
+улучшают позиции 6–10, первые карточки почти не изменились. Какая метрика главная, решает
+то, сколько карточек пользователи реально просматривают.
 
 ### Почему: вклад признаков в метрику
 
-```python
-ex = rl.explainer(model, features, query="qid", doc="sku", relevance="relevance")
-ex.importance("ndcg@10")  # насколько падает метрика, если перемешать признак
-ex.worst(20)  # худшие запросы и признаки, которые их подвели
-```
+Модель — любая: CatBoost, LightGBM, XGBoost, scikit-learn, PyTorch, ONNX или функция
+скоринга, как здесь.
 
-Новый признак оказался первым по вкладу в NDCG@10 на запросах, где он есть. Адаптеры:
-CatBoost, LightGBM, XGBoost, scikit-learn, PyTorch, ONNX или любая функция скоринга.
+```python exec="on" session="cases" source="block" result="text"
+from catalog import FEATURES, new_model
 
-## Попробовать
+from ranklens.explain import CallableAdapter
 
-```python exec="on" source="block" result="text"
-import numpy as np
-import pandas as pd
-
-import ranklens as rl
-
-rng = np.random.default_rng(1)
-rows = []
-for q in range(300):
-    device = "mobile" if q % 2 else "desktop"
-    for d in range(10):
-        grade = int(rng.integers(0, 4))
-        noise_new = 1.0 if device == "mobile" else 1.6  # новая модель лучше на mobile
-        scores = grade + rng.normal(0, 1.6), grade + rng.normal(0, noise_new)
-        rows.append((q, d, grade, device, *scores))
-df = pd.DataFrame(rows, columns=["qid", "sku", "grade", "device", "current", "new"])
-
-qrels = rl.qrels(df, query="qid", doc="sku", relevance="grade")
-current = rl.run(df, query="qid", doc="sku", score="current", segments="device")
-new = rl.run(df, query="qid", doc="sku", score="new", segments="device")
-
-result = rl.compare(current, new, qrels, ["ndcg@10"], by="device")
-print(result.table[["n_queries", "delta", "ci_low", "ci_high", "mde", "q_value"]].round(4))
+model = CallableAdapter(new_model, FEATURES)
+ex = rl.explainer(model, df, query="query", doc="product", relevance="grade")
+print(ex.importance("ndcg@10", n_repeats=3).round(4), "\n")  # если перемешать признак
+print(ex.worst(3)[["ndcg@10", "cause 1"]].round(3))  # худшие запросы и что их подвело
 ```
 
 Дальше — [«Первые шаги»](tutorial.md): файлы и CLI, отчёт с графиками, объяснение модели.
