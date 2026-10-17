@@ -241,6 +241,18 @@ def test_html_report_has_every_chart(files: dict[str, str], tmp_path: Path) -> N
     assert "by segment" not in plain.read_text(encoding="utf-8")
 
 
+def test_html_report_does_not_warn_twice_about_bad_rows(
+    files: dict[str, str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    pytest.importorskip("plotly")
+    with Path(files["candidate"]).open("a", encoding="utf-8") as run:
+        run.write("broken-row\n")
+    report = tmp_path / "compare.html"
+    assert main([*compare_args(files, "--metrics", "mrr"), "--report", str(report)]) == EXIT_OK
+    err = capsys.readouterr().err
+    assert err.count("skipped 1 invalid rows") == 1  # filterwarnings=error: no raw warning
+
+
 def test_report_extension_is_checked_before_work(files: dict[str, str]) -> None:
     with pytest.raises(SystemExit) as exc:
         main([*compare_args(files, "--metrics", "mrr"), "--report", "out.pdf"])
