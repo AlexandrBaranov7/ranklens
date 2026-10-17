@@ -59,8 +59,13 @@ hits = "my_package.metrics:Hits"
 
 После `pip install my-package`:
 
+```python
+from ranklens.metrics import registry
+
+registry.names()  # в списке появится hits
+```
+
 ```bash
-ranklens metrics                     # в списке появится hits
 ranklens eval --run run.trec --qrels qrels.trec --metrics 'hits(rel=2)@10' ndcg@10
 ```
 

@@ -117,18 +117,28 @@ for impression in iter_clicklog("impressions.parquet"):
     отброшенного значит, что ключи или время в потоках не согласованы, и оценке
     по такому логу верить нельзя.
 
-## Оценка из терминала
+## Оценка
 
 Плоский лог (колонки `impression_id, query_id, doc_id, position` и `reward` или `event`)
-и прогон новой модели:
+и выдачи новой модели:
 
-```bash
-ranklens offpolicy --log impressions.parquet --policy new_model.csv \
-    --metric dcg@10 --eta 1 --events click=1,cart=3,purchase=10
+```python
+from ranklens.core import FeedbackScale
+from ranklens.io import ClickLogSchema, RunSchema, iter_clicklog, iter_run
+from ranklens.offpolicy import Propensity, dcg_discount, estimate
+
+scale = FeedbackScale.of({"click": 1, "cart": 3, "purchase": 10})
+log = iter_clicklog(
+    "impressions.parquet", schema=ClickLogSchema(reward=None, event="event"), scale=scale
+)
+new = iter_run("new_model.csv", schema=RunSchema(score="score"), order="score")
+policy = {ranking.query_id: ranking for ranking in new}
+
+ips, snips = estimate(log, policy, Propensity.power(depth=50, eta=1.0), dcg_discount(10))
 ```
 
-Выводятся IPS (ожидаемая дисконтированная награда) и SNIPS (доля награды всего
-показанного — не число кликов), интервалы, число пропущенных запросов, обрезанных весов
-и ESS. `--clip` ограничивает веса, `--max-position` — глубина лога. Если веса вырождены,
-в stderr будет предупреждение — оценке в этом случае верить нельзя, что бы ни говорил
-интервал.
+IPS — ожидаемая дисконтированная награда, SNIPS — доля награды всего показанного (не число
+кликов); у обоих интервал, число пропущенных запросов, обрезанных весов и ESS. `clip=`
+ограничивает веса, `depth` у `Propensity` — глубина лога. Если веса вырождены, будет
+`DegenerateWeightsWarning` — оценке в этом случае верить нельзя, что бы ни говорил интервал.
+`weight_diagnostics` и `ranklens.viz.propensity_diagnostics` показывают распределение весов.

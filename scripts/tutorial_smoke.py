@@ -87,25 +87,6 @@ def main() -> None:
     assert html.count("plotly.js v") == 1, "plotly.js must be embedded once"
     assert 'src="https://' not in html, "the report must open without the internet"
 
-    # off-policy: a feedback log of the old ranking, the new ranking as a run
-    log = ["impression_id,query_id,doc_id,position,reward"]
-    for i in range(400):
-        q = rng.randrange(30)
-        log += [f"i{i},q{q},d{d},{d + 1},{int(rng.random() < 0.3 / (d + 1))}" for d in range(8)]
-    new = write(
-        work / "new.csv", ["query_id,doc_id"] + [f"q{q},d{d}" for q in range(30) for d in range(8)]
-    )
-    out = ranklens(
-        "offpolicy",
-        "--log",
-        str(write(work / "log.csv", log)),
-        "--policy",
-        str(new),
-        "--metric",
-        "dcg@5",
-    )
-    assert "snips" in out, out
-
     # step 4: explain a model — any scorer pickles; this one ranks by the first feature
     from ranklens.explain import CallableAdapter
 

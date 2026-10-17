@@ -27,7 +27,6 @@ Extras: `viz` (графики и HTML-отчёты), `arrow` (parquet, Feather, 
 ranklens eval --run run.trec --qrels qrels.trec --metrics ndcg@10 mrr@10
 ranklens compare --baseline a.csv --candidate b.csv --qrels qrels.csv --metrics ndcg@10
 ranklens explain --model model.cbm --features features.csv --top-worst 20
-ranklens offpolicy --log clicks.parquet --policy new_model.csv --metric dcg@10
 ```
 
 ```text
