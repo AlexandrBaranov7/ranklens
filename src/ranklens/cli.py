@@ -811,8 +811,10 @@ def _compare_report(
         if sum(spec.name == name and spec.k is not None for spec in names) > 1:
             curves = metric_vs_k({"baseline": baseline, "candidate": candidate}, name)
             sections.append(Section(f"{name} by cutoff", figure=curves))
-    runs_a = {r.query_id: r for r in iter_run(args.baseline)}
-    runs_b = {r.query_id: r for r in iter_run(args.candidate)}
+    # read once more for the rankings themselves; rows already reported are skipped quietly
+    quiet = ErrorCollector()
+    runs_a = {r.query_id: r for r in iter_run(args.baseline, errors=quiet)}
+    runs_b = {r.query_id: r for r in iter_run(args.candidate, errors=quiet)}
     pairs = [(runs_a[q], runs_b[q]) for q in runs_a.keys() & runs_b.keys()]
     sections.append(Section("Where the top 10 documents moved", figure=rank_flow(pairs, k=10)))
     write_report(args.report, "ranklens compare", sections)
