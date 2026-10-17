@@ -2,6 +2,64 @@
 
 За десять минут: от файлов с выдачей и разметкой до честного сравнения двух моделей.
 
+## Коротко: данные в pandas
+
+Если выдачи и оценки уже в таблице (как обычно в ноутбуке), хватает `import ranklens as rl`:
+
+```python exec="on" source="block" result="text"
+import numpy as np
+import pandas as pd
+
+import ranklens as rl
+
+# таблица «запрос, документ, оценка» и скоры двух моделей; у каждой два сида обучения
+rng = np.random.default_rng(0)
+rows = []
+for q in range(200):
+    device = "mobile" if q % 2 else "desktop"
+    for d in range(10):
+        grade = int(rng.integers(0, 4))
+        better = 1.0 if device == "mobile" else 1.6  # кандидат лучше на mobile
+        rows.append(
+            (
+                q,
+                d,
+                grade,
+                device,
+                *(grade + rng.normal(0, 1.6, 2)),
+                *(grade + rng.normal(0, better, 2)),
+            )
+        )
+df = pd.DataFrame(
+    rows, columns=["qid", "sku", "grade", "device", "base_s0", "base_s1", "cand_s0", "cand_s1"]
+)
+
+qrels = rl.qrels(df, query="qid", doc="sku", relevance="grade")
+runs = {
+    m: rl.run(df, query="qid", doc="sku", score=m, segments="device")
+    for m in ["base_s0", "base_s1", "cand_s0", "cand_s1"]
+}
+
+print(rl.evaluate(runs["base_s0"], qrels, ["ndcg@10", "mrr@10"]).table, "\n")
+
+# сиды усредняются по запросу; by= — сравнение внутри сегментов с поправкой BH
+result = rl.compare(
+    [runs["base_s0"], runs["base_s1"]],
+    [runs["cand_s0"], runs["cand_s1"]],
+    qrels,
+    ["ndcg@10"],
+    by="device",
+)
+print(result.table[["mean_a", "mean_b", "delta", "ci_low", "ci_high", "q_value"]].round(4))
+print(result.coverage)
+```
+
+В ноутбуке результаты показываются таблицами. Ещё в этом слое: `list_id=` в `rl.run` —
+несколько выдач на запрос (по магазинам, сессиям), метрика усредняется внутри запроса;
+`rl.agreement` и `rl.merge_qrels` — когда системы размечали разные партии асессоров;
+`rl.explainer(model, table, ...)` — `importance()`, `worst()`, `pair()`. Ниже — то же
+по шагам, на файлах и нижнем уровне библиотеки.
+
 ## Что нужно
 
 Два файла. **Прогон** — что модель выдала по каждому запросу, **разметка** —

@@ -25,6 +25,10 @@ LAYERS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
         ),
     ),
     "aggregate": (frozenset({"core", "metrics", "stats"}), frozenset({"numpy", "pandas"})),
+    "api": (
+        frozenset({"core", "io", "metrics", "stats", "aggregate", "offpolicy", "explain"}),
+        frozenset({"numpy", "pandas"}),
+    ),
     "viz": (frozenset({"core"}), frozenset({"plotly"})),
     "report": (frozenset({"core", "viz"}), frozenset({"pandas"})),
 }

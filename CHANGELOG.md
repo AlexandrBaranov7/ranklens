@@ -7,6 +7,10 @@
 
 ### Added
 
+- Дружелюбный слой `import ranklens as rl`: `rl.run` и `rl.qrels` из таблиц (быстрый
+  векторный путь, `list_id` для нескольких выдач на запрос), `rl.evaluate`, `rl.compare`
+  (сиды, сегменты, покрытие, BH), `rl.agreement` и `rl.merge_qrels` для партий разметки,
+  `rl.explainer` (`importance`, `worst`, `pair`).
 - Страница «Устройство»; `scripts/tutorial_smoke.py` — проход «Первых шагов»
   с установленным wheel; ручной workflow `release.yml` для TestPyPI.
 - HTML- и Markdown-отчёты (`ranklens.report`), флаг `--report` у `compare` и `explain`:

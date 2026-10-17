@@ -23,6 +23,25 @@ Extras: `viz` (графики и HTML-отчёты), `arrow` (parquet, Feather, 
 `models` (CatBoost, LightGBM, XGBoost, scikit-learn), `neural` (ONNX). PyTorch ставится
 по инструкции pytorch.org.
 
+Из ноутбука — таблицы pandas напрямую:
+
+```python
+import ranklens as rl
+
+qrels = rl.qrels(labels, query="qid", doc="sku", relevance="relevance")
+base = [
+    rl.run(df, query="qid", doc="sku", score=s, segments="device") for s in ("base_s0", "base_s1")
+]
+cand = [
+    rl.run(df, query="qid", doc="sku", score=s, segments="device") for s in ("cand_s0", "cand_s1")
+]
+
+rl.compare(base, cand, qrels, ["ndcg@10", "mrr@10"], by="device")  # сиды усредняются по запросу
+rl.explainer(model, features_df, query="qid", doc="sku", relevance="relevance").worst(20)
+```
+
+Из терминала:
+
 ```bash
 ranklens eval --run run.trec --qrels qrels.trec --metrics ndcg@10 mrr@10
 ranklens compare --baseline a.csv --candidate b.csv --qrels qrels.csv --metrics ndcg@10
