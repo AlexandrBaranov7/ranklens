@@ -695,6 +695,11 @@ def _explain_table(
     n_queries: int,
 ) -> str:
     lines = [f"{overall.metric} over {n_queries} queries: mean {overall.baseline.mean:.4f}"]
+    without = sum(1 for value in overall.baseline.per_query.values() if value == 0)
+    if without:
+        lines.append(
+            f"{without} queries score 0; those without relevant documents are not diagnosed"
+        )
     if by_position:
         lines.append("features taken by position: the model has no feature names")
     together = "; ".join("+".join(group) for group in groups) if groups else "none"
