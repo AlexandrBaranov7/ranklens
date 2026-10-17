@@ -277,3 +277,24 @@ def test_html_report_skips_segments_too_small_to_compare(tmp_path: Path) -> None
     text = report.read_text(encoding="utf-8")
     assert "by segment" not in text
     assert text.count('class="plotly-graph-div"') == 2  # delta distribution, rank flow
+
+
+def test_runs_with_the_same_rows_and_different_scores_differ(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The notebook case: both exports list documents in the same order, scores differ."""
+    qrels = ["query_id,doc_id,relevance"]
+    a, b = ["query_id,doc_id,score"], ["query_id,doc_id,score"]
+    for q in range(25):
+        qrels.append(f"q{q},d2,1")
+        a += [f"q{q},d0,0.9", f"q{q},d1,0.5", f"q{q},d2,0.1"]  # relevant last
+        b += [f"q{q},d0,0.1", f"q{q},d1,0.5", f"q{q},d2,0.9"]  # relevant first
+    paths = {}
+    for name, lines in (("qrels", qrels), ("a", a), ("b", b)):
+        paths[name] = tmp_path / f"{name}.csv"
+        paths[name].write_text("\n".join(lines) + "\n", encoding="utf-8")
+    args = ["compare", "--baseline", str(paths["a"]), "--candidate", str(paths["b"])]
+    args += ["--qrels", str(paths["qrels"]), "--metrics", "mrr", *FAST, "--format", "json"]
+    assert main(args) == EXIT_OK
+    (row,) = json.loads(capsys.readouterr().out)["comparisons"]
+    assert row["delta"] == pytest.approx(2 / 3)

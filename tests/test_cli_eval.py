@@ -128,3 +128,62 @@ def test_installed_entry_point() -> None:
 def test_metrics_command_lists_builtins(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["metrics"]) == EXIT_OK
     assert capsys.readouterr().out.split() == ["err", "judged", "map", "mrr", "ndcg", "rbp"]
+
+
+# --- how a csv run is ranked (found in a notebook: rows in doc order, ranks in a score) ---
+
+
+def csv_run(path: Path, scores: dict[str, float], with_rank: bool = False) -> str:
+    header = "query_id,doc_id,score" + (",rank" if with_rank else "")
+    rows = [
+        f"q1,{doc},{score}" + (f",{rank}" if with_rank else "")
+        for rank, (doc, score) in enumerate(scores.items(), start=1)
+    ]
+    path.write_text("\n".join([header, *rows]) + "\n", encoding="utf-8")
+    return str(path)
+
+
+QRELS_CSV = "query_id,doc_id,relevance\nq1,d3,1\n"
+
+
+def mrr(capsys: pytest.CaptureFixture[str], run: str, qrels: Path, *extra: str) -> float:
+    args = ["eval", "--run", run, "--qrels", str(qrels), "--metrics", "mrr", *extra]
+    assert main([*args, "--format", "json"]) == EXIT_OK
+    return float(json.loads(capsys.readouterr().out)["metrics"]["mrr"]["mean"])
+
+
+def test_a_score_column_ranks_the_run(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    qrels = tmp_path / "qrels.csv"
+    qrels.write_text(QRELS_CSV, encoding="utf-8")
+    # rows in doc order; the score puts d3 first
+    run = csv_run(tmp_path / "run.csv", {"d1": 0.1, "d2": 0.2, "d3": 0.9})
+    assert mrr(capsys, run, qrels) == 1.0
+    assert mrr(capsys, run, qrels, "--order", "file") == pytest.approx(1 / 3)
+
+
+def test_a_rank_column_is_used_without_a_score(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    qrels = tmp_path / "qrels.csv"
+    qrels.write_text(QRELS_CSV, encoding="utf-8")
+    run = tmp_path / "run.csv"
+    run.write_text("query_id,doc_id,rank\nq1,d1,3\nq1,d3,1\nq1,d2,2\n", encoding="utf-8")
+    assert mrr(capsys, str(run), qrels) == 1.0
+    # both columns and they disagree: rank puts d3 first, the score puts d1 first
+    with_both = csv_run(tmp_path / "both.csv", {"d3": 0.1, "d1": 0.9}, with_rank=True)
+    assert mrr(capsys, with_both, qrels) == 0.5  # auto takes the score
+    assert mrr(capsys, with_both, qrels, "--order", "rank") == 1.0
+
+
+def test_an_order_without_its_column_is_a_config_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = tmp_path / "run.csv"
+    run.write_text("query_id,doc_id\nq1,d1\n", encoding="utf-8")
+    args = ["eval", "--run", str(run), "--qrels", QRELS, "--metrics", "mrr", "--order", "score"]
+    assert main(args) == EXIT_ERROR
+    assert "--order score needs a 'score' column" in capsys.readouterr().err
+
+
+def test_trec_order_can_be_overridden(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main([*run_eval("--metrics", "mrr"), "--order", "file"]) == EXIT_OK
