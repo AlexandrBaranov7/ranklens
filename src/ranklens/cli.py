@@ -11,9 +11,9 @@ import math
 import re
 import sys
 import warnings
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from ranklens import __version__
 from ranklens.core.exceptions import ConfigError, DataError, RankLensError
@@ -28,11 +28,12 @@ from ranklens.core.result import (
     OffPolicyEstimate,
     QueryDiagnosis,
 )
-from ranklens.core.types import Qrels
+from ranklens.core.types import Qrels, RankedList
 from ranklens.io import (
     ClickLogSchema,
     ErrorCollector,
     RunSchema,
+    column_names,
     detect_format,
     iter_clicklog,
     iter_run,
@@ -76,6 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--strict", action="store_true", help="fail on the first invalid row instead of skipping it"
     )
     run_eval.add_argument("--format", choices=["table", "json"], default="table")
+    _add_order(run_eval)
     run_eval.set_defaults(handler=_run_eval)
 
     run_compare = commands.add_parser(
@@ -107,6 +109,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_compare.add_argument("--seed", type=int, default=0)
     run_compare.add_argument("--strict", action="store_true")
     run_compare.add_argument("--format", choices=["table", "json"], default="table")
+    _add_order(run_compare)
     _add_report(run_compare)
     run_compare.set_defaults(handler=_run_compare)
 
@@ -149,6 +152,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_offpolicy.add_argument("--alpha", type=_probability, default=0.05)
     run_offpolicy.add_argument("--strict", action="store_true")
     run_offpolicy.add_argument("--format", choices=["table", "json"], default="table")
+    _add_order(run_offpolicy)
     _add_report(run_offpolicy)
     run_offpolicy.set_defaults(handler=_run_offpolicy)
 
@@ -202,6 +206,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     list_metrics.set_defaults(handler=_list_metrics)
     return parser
+
+
+def _add_order(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--order",
+        choices=["auto", "score", "rank", "file"],
+        default="auto",
+        help="how documents of a query are ranked: by a 'score' column (descending), "
+        "a 'rank' column, or the order of rows; auto (default): TREC by score, other "
+        "formats by 'score' if present, else 'rank', else the order of rows",
+    )
 
 
 def _add_report(parser: argparse.ArgumentParser) -> None:
@@ -300,7 +315,7 @@ def _run_eval(args: argparse.Namespace) -> int:
     metrics = [resolve(spec) for spec in args.metrics]  # a typo fails before reading files
     errors = ErrorCollector()
     qrels = read_qrels(args.qrels, strict=args.strict, errors=errors)
-    runs = iter_run(args.run, strict=args.strict, errors=errors)
+    runs = _read_run(args.run, args, errors)
     evaluation = evaluate(runs, qrels, metrics, strict=args.strict)
     skipped = errors.snapshot()
     if args.format == "json":
@@ -397,13 +412,35 @@ def _evaluate(
     args: argparse.Namespace,
     errors: ErrorCollector,
 ) -> Evaluation:
-    schema = None
-    if args.segments:
-        if detect_format(path) == "trec":
-            raise ConfigError(f"{path}: a TREC run has no columns to take segments from")
-        schema = RunSchema(segments=tuple(args.segments))
-    runs = iter_run(path, schema=schema, strict=args.strict, errors=errors)
+    runs = _read_run(path, args, errors, segments=args.segments)
     return evaluate(runs, qrels, metrics, strict=args.strict)
+
+
+def _read_run(
+    path: Path, args: argparse.Namespace, errors: ErrorCollector, segments: Sequence[str] = ()
+) -> Iterator[RankedList]:
+    """A run ranked as ``--order`` says; ``auto`` uses a score or rank column when there is one.
+
+    A ranking tool exports a score far more often than rows in rank order, so a 'score'
+    column is used without being asked for — reading such a file in row order would
+    silently compare whatever order the export happened to have.
+    """
+    fmt = detect_format(path)
+    if fmt == "trec":
+        if segments:
+            raise ConfigError(f"{path}: a TREC run has no columns to take segments from")
+        given = None if args.order == "auto" else args.order
+        return iter_run(path, order=given, strict=args.strict, errors=errors)
+    columns = column_names(path, fmt)
+    score = "score" if "score" in columns else None
+    rank = "rank" if "rank" in columns else None
+    order: Literal["score", "rank", "file"] = (
+        ("score" if score else "rank" if rank else "file") if args.order == "auto" else args.order
+    )
+    if (order == "score" and not score) or (order == "rank" and not rank):
+        raise ConfigError(f"{path}: --order {order} needs a {order!r} column")
+    schema = RunSchema(score=score, rank=rank, segments=tuple(segments))
+    return iter_run(path, schema=schema, order=order, strict=args.strict, errors=errors)
 
 
 Row = dict[str, Any]  # one line of the comparison: metric, segment and statistics
@@ -553,7 +590,7 @@ def _run_offpolicy(args: argparse.Namespace) -> int:
     discount = dcg_discount(k) if kind == "dcg" else topk_discount(k)
     propensity = Propensity.power(args.max_position, args.eta)
     errors = ErrorCollector()
-    runs = iter_run(args.policy, strict=args.strict, errors=errors)
+    runs = _read_run(args.policy, args, errors)
     policy = {ranking.query_id: ranking for ranking in runs}
     schema = ClickLogSchema(reward=None, event="event") if args.events else None
     log = iter_clicklog(
@@ -813,8 +850,8 @@ def _compare_report(
             sections.append(Section(f"{name} by cutoff", figure=curves))
     # read once more for the rankings themselves; rows already reported are skipped quietly
     quiet = ErrorCollector()
-    runs_a = {r.query_id: r for r in iter_run(args.baseline, errors=quiet)}
-    runs_b = {r.query_id: r for r in iter_run(args.candidate, errors=quiet)}
+    runs_a = {r.query_id: r for r in _read_run(args.baseline, args, quiet)}
+    runs_b = {r.query_id: r for r in _read_run(args.candidate, args, quiet)}
     pairs = [(runs_a[q], runs_b[q]) for q in runs_a.keys() & runs_b.keys()]
     sections.append(Section("Where the top 10 documents moved", figure=rank_flow(pairs, k=10)))
     write_report(args.report, "ranklens compare", sections)

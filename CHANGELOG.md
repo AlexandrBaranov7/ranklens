@@ -107,6 +107,8 @@
 
 ### Changed
 
+- CLI ранжирует CSV/parquet-прогоны по колонке `score` (или `rank`), если она есть;
+  флаг `--order` у `eval`, `compare`, `offpolicy`.
 - Версия 0.1.0; порог покрытия 90%.
 - Property-тест bootstrap допускает округление в последнем знаке (найдено Hypothesis).
 - CI: задание `models` с extra `models` для тестов адаптеров.
