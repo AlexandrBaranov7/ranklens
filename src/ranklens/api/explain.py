@@ -14,6 +14,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
+from ranklens.api.data import table_of
 from ranklens.explain import (
     CallableAdapter,
     QueryFeatures,
@@ -117,7 +118,7 @@ def explainer(
     ``sample`` keeps that many random queries: explanations score every query many
     times, a few hundred queries are usually enough.
     """
-    table = pd.DataFrame(frame)
+    table = table_of(frame)
     adapter = adapt(model)
     names = list(adapter.feature_names)
     if names == [f"f{i}" for i in range(len(names))]:  # trained without names

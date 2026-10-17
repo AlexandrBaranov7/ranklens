@@ -40,6 +40,17 @@ def test_ranked_by_score_like_the_file_reader(tmp_path: Path) -> None:
     assert repr(made) == "Run('score': 2 queries)"
 
 
+def test_polars_and_pyarrow_tables() -> None:
+    polars = pytest.importorskip("polars")
+    pyarrow = pytest.importorskip("pyarrow")
+    expected = docs(rl.run(TABLE, query="qid", doc="sku", score="score"))
+    for table in (polars.from_pandas(TABLE), pyarrow.Table.from_pandas(TABLE)):
+        assert docs(rl.run(table, query="qid", doc="sku", score="score")) == expected
+        assert rl.qrels(table, query="qid", doc="sku", relevance="grade") == rl.qrels(
+            TABLE, query="qid", doc="sku", relevance="grade"
+        )
+
+
 def test_rank_and_row_order() -> None:
     by_rank = rl.run(TABLE.assign(r=[3, 1, 2, 2, 1]), query="qid", doc="sku", rank="r")
     assert docs(by_rank) == {"1": ("21", "20"), "2": ("11", "12", "10")}

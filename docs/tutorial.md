@@ -50,7 +50,7 @@ result = rl.compare(
     ["ndcg@10"],
     by="device",
 )
-print(result.table[["mean_a", "mean_b", "delta", "ci_low", "ci_high", "q_value"]].round(4))
+print(result.table[["mean_a", "mean_b", "delta", "ci_low", "ci_high", "mde", "q_value"]].round(4))
 print(result.coverage)
 ```
 

@@ -11,6 +11,7 @@ from ranklens.aggregate import compare_segments
 from ranklens.core import MetricResult, QueryId
 from ranklens.metrics import evaluate as evaluate_runs
 from ranklens.stats import compare as compare_results
+from ranklens.stats import minimum_detectable_effect, standard_deviation
 
 FAST = {"n_resamples": 300, "n_permutations": 300}
 
@@ -83,6 +84,24 @@ def test_by_segment_equals_compare_segments() -> None:
     assert result.table.loc[("ndcg@5", "mobile"), "significant"]
     assert not result.table.loc[("ndcg@5", "desktop"), "significant"]
     assert list(result.significant.index) == [("ndcg@5", "mobile")]
+
+
+def test_mde_overall_and_per_segment() -> None:
+    a, b = runs(BASE[:1]), runs(CAND[:1])
+    per_a = rl.evaluate(a, QRELS, ["ndcg@5"]).per_query["ndcg@5"]
+    per_b = rl.evaluate(b, QRELS, ["ndcg@5"]).per_query["ndcg@5"]
+    deltas = per_b - per_a
+    overall = rl.compare(a, b, QRELS, ["ndcg@5"], **FAST).table
+    assert list(overall.columns).index("mde") == list(overall.columns).index("ci_high") + 1
+    expected = minimum_detectable_effect(standard_deviation(deltas.tolist()), len(deltas))
+    assert overall.loc["ndcg@5", "mde"] == pytest.approx(expected)
+
+    by = rl.compare(a, b, QRELS, ["ndcg@5"], by="device", **FAST).table
+    device = pd.Series({q: key[0] for q, key in a[0].segments.items()})
+    mobile = deltas[device[deltas.index] == "mobile"]
+    expected = minimum_detectable_effect(standard_deviation(mobile.tolist()), len(mobile))
+    assert by.loc[("ndcg@5", "mobile"), "mde"] == pytest.approx(expected)
+    assert by.loc[("ndcg@5", "mobile"), "mde"] > overall.loc["ndcg@5", "mde"]  # fewer queries
 
 
 def test_segments_from_a_mapping_and_unknown_names() -> None:

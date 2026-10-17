@@ -5,7 +5,8 @@ are averaged per query before anything else — the difference between seeds is 
 of training, not a property of the model. Lists of one query are averaged the same way.
 """
 
-from collections.abc import Mapping, Sequence
+import math
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -17,7 +18,7 @@ from ranklens.core.result import MetricResult
 from ranklens.core.types import Qrels, QueryId, SegmentKey
 from ranklens.metrics import evaluate as evaluate_runs
 from ranklens.metrics import resolve
-from ranklens.stats import adjust
+from ranklens.stats import adjust, minimum_detectable_effect, standard_deviation
 from ranklens.stats import compare as compare_results
 
 __all__ = ["Comparison", "Scores", "compare", "evaluate"]
@@ -62,7 +63,7 @@ def evaluate(runs: Run | Sequence[Run], qrels: Qrels, metrics: Sequence[str]) ->
 
 @dataclass(frozen=True)
 class Comparison:
-    """Difference of B and A per metric (and segment): interval, p-value, q-value."""
+    """Difference of B and A per metric (and segment): interval, MDE, p-value, q-value."""
 
     table: pd.DataFrame
     coverage: Mapping[str, float] = field(default_factory=dict)
@@ -98,8 +99,10 @@ def compare(
 
     ``by`` names segment columns given to `rl.run`, or maps queries to segment labels.
     Benjamini-Hochberg corrects across metrics without ``by`` and across the segments
-    of each metric with it. The coverage of the qrels (judged@k) is measured for both
-    sides: a gap means the comparison favours the side the qrels cover better.
+    of each metric with it. ``mde`` is the smallest difference these queries would
+    detect with 80% power: a smaller delta is below their resolution, not "absent".
+    The coverage of the qrels (judged@k) is measured for both sides: a gap means the
+    comparison favours the side the qrels cover better.
     """
     side_a, side_b = _as_list(a), _as_list(b)
     bound = [resolve(m) for m in metrics]
@@ -139,6 +142,11 @@ def compare(
         ]
         rows = [_row(r) for r in adjust(results)]
         table = pd.DataFrame(rows).set_index("metric")
+        table.insert(
+            list(table.columns).index("ci_high") + 1,
+            "mde",
+            [_mde(scores_a[m], scores_b[m], alpha) for m in labels],
+        )
     else:
         segments, names = _segments(by, side_a[0])
         frames = []
@@ -153,6 +161,18 @@ def compare(
                 n_permutations=n_permutations,
                 seed=seed,
             )
+            queries: dict[SegmentKey, list[QueryId]] = {}
+            for q, key in segments.items():
+                queries.setdefault(key, []).append(q)
+            mde = [
+                _mde(scores_a[m], scores_b[m], alpha, queries.get(tuple(key), ()))
+                if not math.isnan(delta)
+                else math.nan
+                for key, delta in zip(
+                    frame[names].itertuples(index=False), frame["delta"], strict=True
+                )
+            ]
+            frame.insert(list(frame.columns).index("ci_high") + 1, "mde", mde)
             frames.append(frame.assign(metric=m))
         table = pd.concat(frames).set_index(["metric", *names])
     return Comparison(table=table, coverage=coverage, warnings=tuple(warnings))
@@ -178,6 +198,18 @@ def _average(frames: Sequence[pd.DataFrame]) -> pd.DataFrame:
     for frame in frames[1:]:
         common = common.intersection(frame.index)
     return sum(frame.loc[common] for frame in frames) / len(frames)  # type: ignore[return-value]
+
+
+def _mde(
+    a: MetricResult, b: MetricResult, alpha: float, queries: Collection[QueryId] | None = None
+) -> float:
+    common = a.per_query.keys() & b.per_query.keys()
+    if queries is not None:
+        common &= set(queries)
+    deltas = [b.per_query[q] - a.per_query[q] for q in common]
+    if len(deltas) < 2:
+        return math.nan
+    return minimum_detectable_effect(standard_deviation(deltas), len(deltas), alpha=alpha)
 
 
 def _row(result: object) -> dict[str, object]:
