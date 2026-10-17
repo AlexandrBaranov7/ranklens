@@ -19,6 +19,16 @@ __all__ = ["Run", "agreement", "merge_qrels", "qrels", "run"]
 _LIST_SEP = "\x1f"  # joins a query and a list id into the key of one ranking
 
 
+def table_of(frame: Any) -> pd.DataFrame:
+    """A pandas table from pandas, polars, pyarrow or anything ``pd.DataFrame`` accepts."""
+    if isinstance(frame, pd.DataFrame):
+        return frame
+    if hasattr(frame, "to_pandas"):  # polars, pyarrow
+        converted: pd.DataFrame = frame.to_pandas()
+        return converted
+    return pd.DataFrame(frame)
+
+
 @dataclass(frozen=True)
 class Run:
     """The rankings of one model, ready for `rl.evaluate` and `rl.compare`.
@@ -67,7 +77,7 @@ def run(
     names = (segments,) if isinstance(segments, str) else tuple(segments)
     columns = [query, doc, *([list_id] if list_id else []), *([score] if score else [])]
     columns += [c for c in ([rank] if rank else []) + list(names) if c not in columns]
-    table = pd.DataFrame(frame)
+    table = table_of(frame)
     missing = [c for c in columns if c not in table.columns]
     if missing:
         raise KeyError(f"columns not in the table: {missing}; available: {list(table.columns)}")
@@ -123,7 +133,7 @@ def qrels(frame: Any, *, query: str, doc: str, relevance: str, keep_zeros: bool 
     Zeros are judgements too ("judged not relevant"); ``keep_zeros=False`` drops them to
     save memory on large splits — then judged@k counts only relevant documents.
     """
-    table = pd.DataFrame(frame)[[query, doc, relevance]]
+    table = table_of(frame)[[query, doc, relevance]]
     if not keep_zeros:
         table = table[table[relevance] > 0]
     result: Qrels = {}

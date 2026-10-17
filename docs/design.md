@@ -16,6 +16,7 @@ core        типы, протоколы, результаты, исключен
   ├── offpolicy IPS/SNIPS, симулятор, лог из событий      core, metrics, stats, numpy, pandas
   ├── explain   адаптеры моделей, Шепли, listwise          core, metrics, numpy (+ модели лениво)
   └── report    атомарная запись, HTML и Markdown          core, viz
+api         import ranklens as rl: таблицы → сравнение     всё выше, numpy, pandas
 cli         связывает всё; сам сторонних библиотек не импортирует
 ```
 

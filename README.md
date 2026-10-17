@@ -3,48 +3,87 @@
 [![CI](https://github.com/AlexandrBaranov7/ranklens/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexandrBaranov7/ranklens/actions/workflows/ci.yml)
 [![Документация](https://img.shields.io/badge/docs-ranklens-teal)](https://alexandrbaranov7.github.io/ranklens/)
 
-Библиотека и CLI для оффлайн-оценки, честного сравнения и объяснения качества
-ранжирования: **посчитал → сравнил статистически → понял почему**. Метрики совпадают
-с trec_eval до 1e-9, разница двух моделей приходит с интервалом, p-value и поправкой
-на множественные сравнения, а для худших запросов видно, какой признак подвёл модель.
+Модель поменяли — стало ли лучше, **где** и **почему**? ranklens отвечает на это из
+таблиц pandas одной строкой: разница с интервалом, p- и q-value, минимальный заметный
+эффект (MDE), разбивка по сегментам с поправкой на множественные сравнения. Метрики
+совпадают с trec_eval до 1e-9.
 
-```bash
-ranklens compare --baseline old.csv --candidate new.csv --qrels qrels.csv \
-    --metrics ndcg@10 mrr@10 --segments device locale --report compare.html
+```python
+import ranklens as rl
+
+rl.compare(current, new, qrels, ["ndcg@10"], by="device")
 ```
 
-## Быстрый старт
+## Что пригодилось на рабочих задачах
+
+Перед релизом библиотеку прогнали как пользователь на двух задачах из продакшна.
+Три вещи оказались самыми полезными — с них и стоит начинать.
+
+**1. Эффект, невидимый в среднем: сегменты, сиды и MDE.** В каталожную модель добавили
+признак «товар в избранном у пользователя».
+
+```python
+# по два сида обучения у каждой модели: усредняются по запросу до статистики
+rl.compare([base_s0, base_s1], [flag_s0, flag_s1], qrels, ["ndcg@10"], by="has_flag")
+```
+
+В среднем NDCG@10 +0.0004 при MDE 0.0003 — на пределе чувствительности, такое легко
+списать на шум. По сегментам: на 2.8% запросов, где у пользователя есть избранное,
++0.0147 [+0.0117; +0.0177], на остальных — без потерь. Решение — выкатывать.
+
+**2. Две выдачи размечены разными партиями асессоров.** Сравнивали текущую выдачу
+витрины с новой (другой кандидатогенератор, а значит и другое ранжирование); каждую
+размечала своя партия краудсорсинга.
+
+```python
+rl.agreement(batch_cur, batch_new)  # 75% совпадений, вторая партия мягче на 0.05 балла
+qrels = rl.merge_qrels(batch_cur, batch_new)  # одна разметка для обеих сторон
+rl.compare(current, new, qrels, ["ndcg@5", "ndcg@10", "err@10"])
+```
+
+На «своих» оценках разница партий смешалась бы с разницей систем. На общей разметке
+NDCG@10 значимо выше (q = 0.034), а NDCG@5 и ERR@10 — нет: новые кандидаты делают
+выдачу полнее и улучшают позиции 5–10, а первые карточки не изменились.
+
+**3. Почему: вклад признаков прямо в метрику.**
+
+```python
+ex = rl.explainer(model, features, query="qid", doc="sku", relevance="relevance")
+ex.importance("ndcg@10")  # насколько падает метрика, если перемешать признак
+ex.worst(20)  # худшие запросы и признаки, которые их подвели
+```
+
+Новый признак оказался первым по вкладу в NDCG@10 на запросах, где он есть.
+
+## Установка
 
 ```bash
 pip install "ranklens[viz] @ git+https://github.com/AlexandrBaranov7/ranklens"
 ```
 
-Extras: `viz` (графики и HTML-отчёты), `arrow` (parquet, Feather, DataFrame),
-`models` (CatBoost, LightGBM, XGBoost, scikit-learn), `neural` (ONNX). PyTorch ставится
-по инструкции pytorch.org.
+Версия 0.1.0 есть на TestPyPI: `pip install -i https://test.pypi.org/simple/
+--extra-index-url https://pypi.org/simple/ ranklens`. Extras: `viz` (графики
+и HTML-отчёты), `arrow` (parquet, Feather), `models` (CatBoost, LightGBM, XGBoost,
+scikit-learn), `neural` (ONNX). PyTorch ставится по инструкции pytorch.org.
 
-Из ноутбука — таблицы pandas напрямую:
+## Данные и командная строка
+
+`rl.run` и `rl.qrels` берут таблицу pandas, polars или pyarrow с одной строкой на пару
+«запрос — документ»; порядок — по скору модели (`score=`), по позиции (`rank=`) или
+порядку строк. Несколько выдач на запрос (по магазинам, сессиям) — `list_id=`.
 
 ```python
-import ranklens as rl
-
-qrels = rl.qrels(labels, query="qid", doc="sku", relevance="relevance")
-base = [
-    rl.run(df, query="qid", doc="sku", score=s, segments="device") for s in ("base_s0", "base_s1")
-]
-cand = [
-    rl.run(df, query="qid", doc="sku", score=s, segments="device") for s in ("cand_s0", "cand_s1")
-]
-
-rl.compare(base, cand, qrels, ["ndcg@10", "mrr@10"], by="device")  # сиды усредняются по запросу
-rl.explainer(model, features_df, query="qid", doc="sku", relevance="relevance").worst(20)
+qrels = rl.qrels(labels, query="qid", doc="sku", relevance="grade")
+current = rl.run(df_a, query="qid", doc="sku", rank="pos", segments="device")
+new = rl.run(df_b, query="qid", doc="sku", rank="pos", segments="device")
 ```
 
-Из терминала:
+Те же сравнения из терминала — для файлов и CI:
 
 ```bash
 ranklens eval --run run.trec --qrels qrels.trec --metrics ndcg@10 mrr@10
-ranklens compare --baseline a.csv --candidate b.csv --qrels qrels.csv --metrics ndcg@10
+ranklens compare --baseline a.csv --candidate b.csv --qrels qrels.csv \
+    --metrics ndcg@10 mrr@10 --segments device locale --report compare.html
 ranklens explain --model model.cbm --features features.csv --top-worst 20
 ```
 
@@ -66,12 +105,13 @@ ndcg@10  mobile   ru      60       0.6137  0.6926  +0.0789  [+0.0409, +0.1234]  
 
 | Что | Где |
 |---|---|
+| Таблицы pandas/polars → сравнение одной строкой: сиды, сегменты, MDE, покрытие разметки | `import ranklens as rl` |
 | NDCG, MAP, MRR (умолчания trec_eval), ERR, RBP, RBO, judged@k; свои метрики — плагином | `ranklens.metrics` |
 | Парный bootstrap по запросам, перестановочный тест, Бенджамини — Хохберг, MDE | `ranklens.stats` |
 | Сравнение по сегментам с q-values | `ranklens.aggregate` |
-| Неточная разметка: PPI++ (дешёвая proxy-разметка + gold-выборка), покрытие judged@k | `ranklens.stats`, `compare` |
+| Неточная разметка: согласие партий, общая разметка, PPI++ (дешёвая proxy-разметка + gold-выборка), judged@k | `rl.agreement`, `rl.merge_qrels`, `ranklens.stats` |
 | Off-policy: IPS и SNIPS по логам кликов, PBM, симулятор с известной истиной, ESS | `ranklens.offpolicy` |
-| Объяснение: Шепли для пары документов, вклад признаков в метрику, группы коррелированных признаков, худшие запросы | `ranklens.explain` |
+| Объяснение: Шепли для пары документов, вклад признаков в метрику, группы коррелированных признаков, худшие запросы | `rl.explainer`, `ranklens.explain` |
 | Графики и самодостаточные HTML/Markdown-отчёты | `ranklens.viz`, `ranklens.report` |
 
 ## Почему не существующие библиотеки
@@ -95,7 +135,7 @@ ranklens не заменяет их в скорости и полноте наб
 
 Слои с проверяемыми границами: `core` (типы, результаты, протоколы, исключения — только
 stdlib) → `io`, `metrics`, `stats`, `viz` → `aggregate`, `offpolicy`, `explain`, `report`
-→ `cli`. `tests/test_architecture.py` разбирает AST каждого модуля и падает, если слой
+→ `api` (`import ranklens as rl`) и `cli`. `tests/test_architecture.py` разбирает AST каждого модуля и падает, если слой
 импортирует то, что ему не положено, или тяжёлую библиотеку не лениво. Прогоны читаются
 потоком (генератор, в памяти — одна выдача), разметка — в словарь для поиска за O(1).
 Подробно — [«Устройство»](https://alexandrbaranov7.github.io/ranklens/design/).

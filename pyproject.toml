@@ -34,6 +34,7 @@ neural = ["onnxruntime>=1.17"]
 
 [project.urls]
 Homepage = "https://github.com/AlexandrBaranov7/ranklens"
+Documentation = "https://alexandrbaranov7.github.io/ranklens/"
 Issues = "https://github.com/AlexandrBaranov7/ranklens/issues"
 Changelog = "https://github.com/AlexandrBaranov7/ranklens/blob/main/CHANGELOG.md"
 
@@ -52,6 +53,7 @@ dev = [
   "pyarrow>=15",
   "polars>=1",
   "pandas-stubs",
+  "mkdocs>=1.6,<2",  # 2.0 drops plugins and themes
   "mkdocs-material>=9.6",
   "mkdocstrings[python]>=0.29",
   "markdown-exec>=1.10",
