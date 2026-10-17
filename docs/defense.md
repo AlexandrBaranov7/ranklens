@@ -2,7 +2,7 @@
 
 > Временный артефакт курса: на сайт не публикуется, удаляется при чистке после защиты
 > (CONTRIBUTING, раздел 11). Всё про «какие тесты упадут» проверено правкой репозитория
-> 2026-10-17, после сужения CLI до `eval`, `compare`, `explain`.
+> 2026-10-17 на main после PR #50 (MDE в `rl.compare`, polars, описание через типичные задачи).
 
 Формат: 2 минуты рассказа → 5 минут правки кода вживую → 5 минут вопросов.
 
@@ -34,13 +34,13 @@
 
 | Правка | Что сделать | Что упадёт |
 |---|---|---|
-| Новая метрика | функция `(ranked, judgements, k) -> float` и `registry.register("precision", lambda: precision)` в `metrics/builtin.py` | один тест: `test_without_plugins_only_builtins_are_listed` — список встроенных метрик реестра; дописать имя в ожидаемый список |
+| Новая метрика | функция `(ranked, judgements, k) -> float` и `registry.register("precision", lambda: precision)` в `metrics/builtin.py`. **`ranked` — кортеж id документов, не `RankedList`:** `ranked[:k]` (срез `[:None]` — вся выдача), `ranked.top(k)` упадёт с `AttributeError`. Тело: `top = ranked[:k]; return sum(judgements.get(d, 0) > 0 for d in top) / len(top) if top else 0.0` | один тест: `test_without_plugins_only_builtins_are_listed` — список встроенных метрик реестра; дописать имя в ожидаемый список |
 | Ещё одна модель | класс-адаптер с `feature_names`, `score`, `native_importance` и строка в `ADAPTERS` (ключ — корневой пакет модуля модели) | ничего: тест неизвестной модели берёт список из `ADAPTERS` |
 | NDCG: gain linear → exp по умолчанию | `gain: str = "exp"` в `metrics/ndcg.py` | 7 тестов: golden против trec_eval (4), `test_ndcg_linear_gain`, вывод `eval` (2). Потому что trec_eval — линейный gain; exp — параметр `ndcg(gain=exp)@10` |
 | Поменять k | `--metrics ndcg@5` вместо `@10` | ничего не ломается; DCG@k монотонна по k, NDCG@k — нет (см. ниже) |
 | Сломать сортировку | убрать `raise UnsortedInputError` в `io/readers.py` | `test_numerically_sorted_trec_run_is_not_sorted`; `PairedRuns` проверяет порядок сам |
 | Число bootstrap-ресемплов | `--resamples 200` | ничего; интервал шумнее (ошибка Монте-Карло ~1/√B), время линейно по B; результат не зависит от размера чанка (тест) |
-| Новое исключение | класс в `core/exceptions.py`, наследник `DataError`/`ConfigError`; **аргументы в `super().__init__`** | без них pickle падает с `TypeError`; тест `test_pickle_round_trip` поймает, если добавить экземпляр в `INSTANCES` |
+| Новое исключение | класс в `core/exceptions.py`, наследник `DataError`/`ConfigError`; **аргументы в `super().__init__`** | без них pickle падает с `TypeError`. Два теста: `test_all_public_errors_are_covered` требует экземпляр в `INSTANCES` для каждого имени из `exceptions.__all__` (и наоборот), а `test_pickle_round_trip` прогоняет его через pickle |
 | `core` импортирует numpy | `import numpy` в `core/types.py` | `test_package_respects_layers[ranklens.core.types-…]` с файлом и строкой |
 
 ## Вопросы
@@ -111,3 +111,12 @@ AST каждого модуля и сверяет импорты с таблиц
 
 **PPI++ одной фразой?** Дельта по дешёвой разметке на всех запросах плюс поправка, измеренная
 на случайной gold-выборке; λ подбирается по данным, плохой proxy получает λ ≈ 0.
+
+**Как считается `mde` в `rl.compare`?** MDE = (z₁₋α/₂ + z_power) · sd / √n по поразапросным
+разницам, power = 0.8 (`stats/power.py`). Для сегмента — по его запросам; меньше порога
+статистики (20 запросов) — пусто, как и остальные поля. Смысл: дельта меньше MDE —
+не «эффекта нет», а «эти запросы его не различат».
+
+**Откуда цифры на главной документации?** Синтетический каталог `docs/examples/catalog.py`
+(выдуманные товары и бренды); примеры исполняются при `mkdocs build --strict` в CI, поэтому
+текст не расходится с кодом.
