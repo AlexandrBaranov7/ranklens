@@ -110,6 +110,12 @@ jobs:
           cd /tmp
           /tmp/clean/bin/ranklens --version
           /tmp/clean/bin/python -c "import ranklens, pathlib; assert (pathlib.Path(ranklens.__file__).parent / 'py.typed').exists()"
+      - name: Walk through the tutorial with the installed wheel
+        run: |
+          /tmp/clean/bin/pip install "$(ls dist/*.whl)[viz]"
+          cp scripts/tutorial_smoke.py /tmp/tutorial_smoke.py
+          cd /tmp
+          PATH=/tmp/clean/bin:$PATH /tmp/clean/bin/python -I /tmp/tutorial_smoke.py
 
   # report only: shared runners are too noisy for a hard regression gate (Q-11)
   bench:

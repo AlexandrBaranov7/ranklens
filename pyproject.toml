@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "ranklens"
-version = "0.0.1.dev0"
+version = "0.1.0"
 description = "Offline evaluation, statistical comparison and explanation of ranking quality"
 readme = "README.md"
 license = "MIT"
@@ -126,7 +126,7 @@ branch = true
 omit = ["*/__main__.py"]
 
 [tool.coverage.report]
-fail_under = 85
+fail_under = 90
 show_missing = true
 skip_covered = true
 exclude_also = [

@@ -263,7 +263,12 @@ poetry run pytest --cov
 - CHANGELOG — в формате [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/).
 - Версия задаётся в одном месте — `version` в `pyproject.toml` (`poetry version patch|minor`);
   `ranklens.__version__` читает её из метаданных установленного пакета.
-- Релиз — тег `vX.Y.Z` на `main`, сначала публикация в TestPyPI.
+- Релиз — тег `vX.Y.Z` на `main`, сначала публикация в TestPyPI: Actions → Release →
+  Run workflow для тега. Публикация — trusted publishing, без токенов в репозитории.
+  Один раз владелец проекта на test.pypi.org добавляет trusted publisher: репозиторий
+  `AlexandrBaranov7/ranklens`, workflow `release.yml`, environment `testpypi`.
+- Проверка релиза — задание CI `install`: собранный wheel ставится обычным pip в чистое
+  окружение, и `scripts/tutorial_smoke.py` проходит «Первые шаги» вне репозитория.
 - Перед первым релизом на PyPI репозиторий чистится от временных артефактов (раздел 11).
   Релизы на TestPyPI до этого — репетиции.
 
