@@ -149,6 +149,9 @@ def compare(
         )
     else:
         segments, names = _segments(by, side_a[0])
+        queries: dict[SegmentKey, list[QueryId]] = {}
+        for q, key in segments.items():
+            queries.setdefault(key, []).append(q)
         frames = []
         for m in labels:
             frame = compare_segments(
@@ -161,9 +164,6 @@ def compare(
                 n_permutations=n_permutations,
                 seed=seed,
             )
-            queries: dict[SegmentKey, list[QueryId]] = {}
-            for q, key in segments.items():
-                queries.setdefault(key, []).append(q)
             mde = [
                 _mde(scores_a[m], scores_b[m], alpha, queries.get(tuple(key), ()))
                 if not math.isnan(delta)
