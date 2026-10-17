@@ -27,11 +27,16 @@ def diagnose(
     n_repeats: int = 5,
     seed: int = 0,
 ) -> tuple[QueryDiagnosis, ...]:
-    """The ``top`` queries with the lowest metric, worst first (ties by query id)."""
+    """The ``top`` queries with the lowest metric, worst first (ties by query id).
+
+    Only queries with at least one relevant document are considered.
+    """
     if top < 1:
         raise ValueError(f"top must be >= 1, got {top}")
     bound = resolve(metric) if isinstance(metric, str) else metric
-    pool = list(queries)
+    # a query with no relevant document scores 0 whatever the model does: it would always
+    # be "worst" and nothing could be learned from it
+    pool = [q for q in queries if any(grade > 0 for grade in q.judgements.values())]
     values = {
         q.query_id: bound(ranking(q.docs, model.score(q.features)), q.judgements) for q in pool
     }

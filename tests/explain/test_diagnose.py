@@ -59,6 +59,13 @@ def test_the_worst_queries_are_those_where_the_feature_misleads() -> None:
         assert diagnosis.metric == "ndcg@5"
 
 
+def test_queries_without_relevant_documents_are_not_diagnosed() -> None:
+    nothing = QueryFeatures.of("q-none", ["a", "b"], [[1.0, 0.0], [2.0, 0.0]], {"a": 0, "b": 0})
+    worst = diagnose(MODEL, [nothing, *queries(5)], top=10)
+    assert "q-none" not in {d.query_id for d in worst}
+    assert len(worst) == 5
+
+
 def test_top_larger_than_the_pool_and_empty_pool() -> None:
     assert len(diagnose(MODEL, queries(3), top=10)) == 3
     assert diagnose(MODEL, [], top=10) == ()

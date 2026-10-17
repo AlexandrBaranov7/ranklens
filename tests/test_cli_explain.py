@@ -118,6 +118,17 @@ def test_model_and_table_must_agree(
     assert "the model has 2 features, the table 4" in capsys.readouterr().err
 
 
+def test_queries_without_relevant_documents_are_reported_not_diagnosed(
+    files: dict[str, Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    with files["features"].open("a", encoding="utf-8") as table:
+        table.writelines(f"qzero,d{i},0,{i},{i},{i},{i}\n" for i in range(3))
+    assert main(run(files, "named", "--top-worst", "40")) == EXIT_OK
+    out = capsys.readouterr().out
+    assert "queries score 0; those without relevant documents are not diagnosed" in out
+    assert "qzero" not in out.split("worst")[1]
+
+
 def test_pickle_without_permission(
     files: dict[str, Path], capsys: pytest.CaptureFixture[str]
 ) -> None:
