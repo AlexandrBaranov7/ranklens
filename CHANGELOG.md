@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-10-17
+
+Первый выпуск: метрики, статистика сравнения, сегменты, неточная разметка, off-policy
+оценка по кликам, объяснение моделей, графики и отчёты; дружелюбный слой
+`import ranklens as rl` для работы с таблицами; CLI `eval`, `compare`, `explain`.
+
 ### Added
 
 - Дружелюбный слой `import ranklens as rl`: `rl.run` и `rl.qrels` из таблиц (быстрый
@@ -114,10 +120,13 @@
   флаг `--order` у `eval` и `compare`.
 - CLI сужен до трёх команд: `eval`, `compare`, `explain`; off-policy оценка и список
   метрик — из Python (`ranklens.offpolicy.estimate`, `registry.names()`).
-- Версия 0.1.0; порог покрытия 90%.
+- Порог покрытия 90%.
 - Property-тест bootstrap допускает округление в последнем знаке (найдено Hypothesis).
 - CI: задание `models` с extra `models` для тестов адаптеров.
 - CI: статистическая валидация (`-m slow`) — отдельное задание `statistics`, матрица
   тестов её не запускает.
 - «Первые шаги»: p-value — вероятность увидеть такую же **или более экстремальную**
   разницу при отсутствии эффекта.
+
+[Unreleased]: https://github.com/AlexandrBaranov7/ranklens/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/AlexandrBaranov7/ranklens/releases/tag/v0.1.0
