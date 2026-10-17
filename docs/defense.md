@@ -1,8 +1,8 @@
 # Подготовка к защите
 
 > Временный артефакт курса: на сайт не публикуется, удаляется при чистке после защиты
-> (CONTRIBUTING, раздел 11). Всё про «какие тесты упадут» проверено правкой копии
-> репозитория 2026-10-17.
+> (CONTRIBUTING, раздел 11). Всё про «какие тесты упадут» проверено правкой репозитория
+> 2026-10-17, после сужения CLI до `eval`, `compare`, `explain`.
 
 Формат: 2 минуты рассказа → 5 минут правки кода вживую → 5 минут вопросов.
 
@@ -34,7 +34,7 @@
 
 | Правка | Что сделать | Что упадёт |
 |---|---|---|
-| Новая метрика | функция `(ranked, judgements, k) -> float` и `registry.register("precision", lambda: precision)` в `metrics/builtin.py` | один тест: `test_metrics_command_lists_builtins` — список встроенных метрик в `ranklens metrics`; дописать имя в ожидаемый список |
+| Новая метрика | функция `(ranked, judgements, k) -> float` и `registry.register("precision", lambda: precision)` в `metrics/builtin.py` | один тест: `test_without_plugins_only_builtins_are_listed` — список встроенных метрик реестра; дописать имя в ожидаемый список |
 | Ещё одна модель | класс-адаптер с `feature_names`, `score`, `native_importance` и строка в `ADAPTERS` (ключ — корневой пакет модуля модели) | ничего: тест неизвестной модели берёт список из `ADAPTERS` |
 | NDCG: gain linear → exp по умолчанию | `gain: str = "exp"` в `metrics/ndcg.py` | 7 тестов: golden против trec_eval (4), `test_ndcg_linear_gain`, вывод `eval` (2). Потому что trec_eval — линейный gain; exp — параметр `ndcg(gain=exp)@10` |
 | Поменять k | `--metrics ndcg@5` вместо `@10` | ничего не ломается; DCG@k монотонна по k, NDCG@k — нет (см. ниже) |
