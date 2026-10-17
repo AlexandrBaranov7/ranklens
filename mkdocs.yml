@@ -40,6 +40,7 @@ nav:
       - Объяснение модели: math/explain.md
   - Устройство: design.md
   - Справочник:
+      - ranklens (rl): api/api.md
       - ranklens.io: api/io.md
       - ranklens.metrics: api/metrics.md
       - ranklens.stats: api/stats.md
