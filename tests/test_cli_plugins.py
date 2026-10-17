@@ -1,4 +1,4 @@
-"""End to end: a real installed plugin package is picked up by the CLI."""
+"""End to end: a real installed plugin package is picked up by the registry and the CLI."""
 
 import os
 import subprocess
@@ -46,9 +46,19 @@ def ranklens(site: Path, *args: str) -> str:
     return proc.stdout
 
 
+def metric_names(site: Path) -> list[str]:
+    """The registry seen by a fresh interpreter with the plugin on its path."""
+    env = {**os.environ, "PYTHONPATH": str(site)}
+    code = "from ranklens.metrics import registry; print(*registry.names())"
+    proc = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, env=env, check=True
+    )
+    return proc.stdout.split()
+
+
 def test_plugin_metric_is_listed_and_usable(tmp_path: Path) -> None:
     install_plugin(tmp_path)
-    assert "hits" in ranklens(tmp_path, "metrics").split()
+    assert "hits" in metric_names(tmp_path)
     out = ranklens(
         tmp_path,
         "eval",
@@ -66,4 +76,4 @@ def test_plugin_metric_is_listed_and_usable(tmp_path: Path) -> None:
 
 
 def test_without_plugins_only_builtins_are_listed(tmp_path: Path) -> None:
-    assert ranklens(tmp_path, "metrics").split() == ["err", "judged", "map", "mrr", "ndcg", "rbp"]
+    assert metric_names(tmp_path) == ["err", "judged", "map", "mrr", "ndcg", "rbp"]

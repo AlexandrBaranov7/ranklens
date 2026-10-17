@@ -9,8 +9,8 @@
 
 - Страница «Устройство»; `scripts/tutorial_smoke.py` — проход «Первых шагов»
   с установленным wheel; ручной workflow `release.yml` для TestPyPI.
-- HTML- и Markdown-отчёты (`ranklens.report`), флаг `--report` у `compare`, `explain`,
-  `offpolicy`: самодостаточный HTML со всеми графиками.
+- HTML- и Markdown-отчёты (`ranklens.report`), флаг `--report` у `compare` и `explain`:
+  самодостаточный HTML со всеми графиками.
 - `ranklens.viz`: `metric_vs_k`, `segment_gains`, `delta_distribution`, `rank_flow`,
   `attribution_heatmap`, `propensity_diagnostics`; `WeightDiagnostics.weights`.
 - `ranklens.report.AtomicReport`: отчёт записывается целиком или не записывается вовсе.
@@ -31,7 +31,6 @@
   его наравне с `ComparisonResult`. Раздел «Неточная разметка» в «Статистике сравнения».
 - Метрика `judged@k` — доля top-k с оценкой; `ranklens compare` показывает покрытие
   разметкой у обоих прогонов и предупреждает, когда оно расходится на 10 п.п. и больше.
-- Команда `ranklens offpolicy`: IPS и SNIPS по логу и прогону новой модели.
 - `ranklens.offpolicy.estimate` (несколько оценщиков за проход), ESS в `OffPolicyEstimate`,
   предупреждение `DegenerateWeightsWarning`, `weight_diagnostics` — распределение весов.
 - `ranklens.offpolicy.ips` и `snips` (отношение): оценка новой политики по логу старой,
@@ -63,8 +62,8 @@
   прогонов с доверительным интервалом и p-value; результат `ComparisonResult`.
 - `ranklens.stats`: paired bootstrap по запросам (`paired_deltas`, `paired_bootstrap`),
   результат `BootstrapInterval`, предупреждение `SmallSampleWarning` на малой выборке.
-- Плагины метрик через entry points `ranklens.metrics`, предупреждение `PluginWarning`,
-  команда `ranklens metrics`; how-to `docs/howto/custom-metric.md`.
+- Плагины метрик через entry points `ranklens.metrics`, предупреждение `PluginWarning`;
+  how-to `docs/howto/custom-metric.md`.
 - Векторизованный расчёт метрик пачками (`BatchMetric`, `evaluate(batch_size=...)`):
   в 7.5 раза быстрее поштучного на 2 000 запросах; бенчмарки и неблокирующая задача `bench` в CI.
 - `iter_run(order="score")`: сортировка по score с разрешением равенств как в trec_eval;
@@ -108,7 +107,9 @@
 ### Changed
 
 - CLI ранжирует CSV/parquet-прогоны по колонке `score` (или `rank`), если она есть;
-  флаг `--order` у `eval`, `compare`, `offpolicy`.
+  флаг `--order` у `eval` и `compare`.
+- CLI сужен до трёх команд: `eval`, `compare`, `explain`; off-policy оценка и список
+  метрик — из Python (`ranklens.offpolicy.estimate`, `registry.names()`).
 - Версия 0.1.0; порог покрытия 90%.
 - Property-тест bootstrap допускает округление в последнем знаке (найдено Hypothesis).
 - CI: задание `models` с extra `models` для тестов адаптеров.
