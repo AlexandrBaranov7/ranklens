@@ -7,6 +7,8 @@
 
 ### Added
 
+- Страница «Устройство»; `scripts/tutorial_smoke.py` — проход «Первых шагов»
+  с установленным wheel; ручной workflow `release.yml` для TestPyPI.
 - HTML- и Markdown-отчёты (`ranklens.report`), флаг `--report` у `compare`, `explain`,
   `offpolicy`: самодостаточный HTML со всеми графиками.
 - `ranklens.viz`: `metric_vs_k`, `segment_gains`, `delta_distribution`, `rank_flow`,
@@ -105,6 +107,7 @@
 
 ### Changed
 
+- Версия 0.1.0; порог покрытия 90%.
 - Property-тест bootstrap допускает округление в последнем знаке (найдено Hypothesis).
 - CI: задание `models` с extra `models` для тестов адаптеров.
 - CI: статистическая валидация (`-m slow`) — отдельное задание `statistics`, матрица
