@@ -18,7 +18,7 @@
   (сиды, сегменты, покрытие, BH), `rl.agreement` и `rl.merge_qrels` для партий разметки,
   `rl.explainer` (`importance`, `worst`, `pair`).
 - Страница «Устройство»; `scripts/tutorial_smoke.py` — проход «Первых шагов»
-  с установленным wheel; ручной workflow `release.yml` для TestPyPI.
+  с установленным wheel; ручной workflow `release.yml` для TestPyPI и PyPI.
 - HTML- и Markdown-отчёты (`ranklens.report`), флаг `--report` у `compare` и `explain`:
   самодостаточный HTML со всеми графиками.
 - `ranklens.viz`: `metric_vs_k`, `segment_gains`, `delta_distribution`, `rank_flow`,

@@ -1,10 +1,16 @@
 name: Release
 
-# A rehearsal on TestPyPI, started by hand for a tag: Actions -> Release -> Run workflow.
+# Started by hand for a tag: Actions -> Release -> Run workflow, TestPyPI first, then PyPI.
 # Trusted publishing (OpenID Connect) needs no token in the repository; the owner of the
-# TestPyPI project registers this repository and workflow once (CONTRIBUTING, section 10).
+# project on each index registers this repository and workflow once (CONTRIBUTING, section 10).
 on:
   workflow_dispatch:
+    inputs:
+      index:
+        description: Where to publish
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
 
 permissions:
   contents: read
@@ -31,10 +37,12 @@ jobs:
           name: dist
           path: dist/
 
-  testpypi:
+  publish:
     needs: build
     runs-on: ubuntu-latest
-    environment: testpypi
+    environment:
+      name: ${{ inputs.index }}
+      url: ${{ inputs.index == 'pypi' && 'https://pypi.org/p/ranklens' || 'https://test.pypi.org/p/ranklens' }}
     permissions:
       id-token: write  # trusted publishing
     steps:
@@ -44,4 +52,4 @@ jobs:
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository-url: https://test.pypi.org/legacy/
+          repository-url: ${{ inputs.index == 'pypi' && 'https://upload.pypi.org/legacy/' || 'https://test.pypi.org/legacy/' }}
