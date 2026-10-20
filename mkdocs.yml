@@ -9,6 +9,8 @@ copyright: MIT
 theme:
   name: material
   language: ru
+  logo: images/brand/logo-small-dark.svg
+  favicon: images/brand/favicon.svg
   features:
     - navigation.sections
     - navigation.top
@@ -19,13 +21,13 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: teal
-      accent: teal
+      primary: custom
+      accent: custom
       toggle: { icon: material/weather-night, name: Тёмная тема }
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: teal
-      accent: teal
+      primary: custom
+      accent: custom
       toggle: { icon: material/weather-sunny, name: Светлая тема }
 
 nav:
@@ -92,6 +94,7 @@ extra_javascript:
 
 extra_css:
   - https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css
+  - stylesheets/brand.css
 
 exclude_docs: |
   decisions.md

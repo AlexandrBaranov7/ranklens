@@ -1,0 +1,26 @@
+/* Colours of the ranklens mark: ink header, teal from the lens. */
+:root,
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #1b2326;
+  --md-primary-fg-color--light: #2c373a;
+  --md-primary-fg-color--dark: #11181a;
+  --md-primary-bg-color: #f3f5f4;
+  --md-primary-bg-color--light: #f3f5f4b3;
+  --md-accent-fg-color: #00958c;
+  --md-accent-fg-color--transparent: #00958c1a;
+  --md-typeset-a-color: #00756e;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #1b2326;
+  --md-primary-fg-color--light: #2c373a;
+  --md-primary-fg-color--dark: #11181a;
+  --md-accent-fg-color: #3abbb1;
+  --md-accent-fg-color--transparent: #3abbb11a;
+  --md-typeset-a-color: #3abbb1;
+}
+
+/* the simplified mark is drawn for 32 px */
+.md-header__button.md-logo img {
+  height: 1.6rem;
+}
