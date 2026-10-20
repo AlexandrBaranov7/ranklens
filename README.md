@@ -1,7 +1,12 @@
-# ranklens
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/brand/logo-wordmark-dark.svg">
+    <img src="docs/images/brand/logo-wordmark.svg" alt="ranklens" height="64">
+  </picture>
+</h1>
 
 [![CI](https://github.com/AlexandrBaranov7/ranklens/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexandrBaranov7/ranklens/actions/workflows/ci.yml)
-[![Документация](https://img.shields.io/badge/docs-ranklens-teal)](https://alexandrbaranov7.github.io/ranklens/)
+[![Документация](https://img.shields.io/badge/docs-ranklens-00958c)](https://alexandrbaranov7.github.io/ranklens/)
 
 Модель поменяли — стало ли лучше, **где** и **почему**? ranklens отвечает на это из
 таблиц pandas одной строкой: разница с интервалом, p- и q-value, минимальный заметный
