@@ -58,15 +58,19 @@ def test_metric_vs_k_one_line_per_run_sorted_by_k() -> None:
 
 def test_segment_gains_highlights_significant_segments() -> None:
     figure = segment_gains(
-        {"mobile": comparison(0.05, 0.02, 0.09, 0.01), "desktop": comparison(0.0, -0.02, 0.03, 0.6)}
+        {
+            "mobile": comparison(0.05, 0.02, 0.09, 0.01),
+            "desktop": comparison(0.0, -0.02, 0.03, 0.6),
+            "tablet": comparison(0.0, -0.02, 0.03, None),
+        }
     )
     bar = figure.data[0]
-    assert list(bar.y) == ["mobile", "desktop"]
-    assert list(bar.x) == [0.05, 0.0]
-    assert list(bar.error_x.array) == pytest.approx([0.04, 0.03])
-    assert list(bar.error_x.arrayminus) == pytest.approx([0.03, 0.02])
+    assert list(bar.y) == ["mobile", "desktop", "tablet"]
+    assert list(bar.x) == [0.05, 0.0, 0.0]
+    assert list(bar.error_x.array) == pytest.approx([0.04, 0.03, 0.03])
+    assert list(bar.error_x.arrayminus) == pytest.approx([0.03, 0.02, 0.02])
     assert bar.marker.color[0] != bar.marker.color[1]
-    assert list(bar.customdata) == [0.01, 0.6]
+    assert list(bar.customdata) == ["q = 0.0100", "q = 0.6000", "p = 0.0100"]
 
 
 def test_delta_distribution_uses_paired_queries() -> None:
