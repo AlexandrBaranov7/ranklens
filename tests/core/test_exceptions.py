@@ -84,7 +84,8 @@ def test_malformed_row_truncates_long_raw() -> None:
 def test_unsorted_input_suggests_fix() -> None:
     message = str(UnsortedInputError(12, "q2", "q1"))
     assert "'q1' comes after 'q2'" in message
-    assert "--sort" in message
+    assert "Sort the file by query_id as strings" in message
+    assert "--sort" not in message  # there is no such flag
 
 
 def test_metric_not_found_suggests_closest() -> None:
@@ -115,7 +116,7 @@ def test_unsupported_model_points_to_callable_adapter() -> None:
 def test_ungrouped_input_names_query_and_fix() -> None:
     message = str(UngroupedInputError(40, "q1", path="run.csv"))
     assert message.startswith("run.csv:40: query 'q1' appears again")
-    assert "--sort" in message
+    assert message.endswith("Sort the file by query_id.")
 
 
 def test_missing_column_suggests_closest() -> None:

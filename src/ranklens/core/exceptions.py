@@ -89,7 +89,7 @@ class UnsortedInputError(DataError):
         return (
             f"{_location(self.path, self.line_no)}: input is not sorted by query_id "
             f"({self.curr_qid!r} comes after {self.prev_qid!r}). "
-            "Sort the file by query_id as strings or pass --sort."
+            "Sort the file by query_id as strings, where '10' comes before '9'."
         )
 
 
@@ -110,7 +110,7 @@ class UngroupedInputError(DataError):
         return (
             f"{_location(self.path, self.line_no)}: {self.unit} {self.query_id!r} appears "
             f"again after others; rows of each {self.unit} must be contiguous. "
-            f"Sort the file by {column} or pass --sort."
+            f"Sort the file by {column}."
         )
 
 
