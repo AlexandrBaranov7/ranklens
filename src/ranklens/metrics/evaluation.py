@@ -10,7 +10,11 @@ from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
 from ranklens.metrics.builtin import registry as builtin_registry
 from ranklens.metrics.vectorized import Batch, BatchMetric, make_batch
 
-__all__ = ["evaluate"]
+__all__ = ["BATCH_CELLS", "evaluate"]
+
+BATCH_CELLS = 2**22
+"""Cells of one batch matrix (32 MB of float64): a query with a huge ranking or a huge
+set of judgements is scored in a smaller batch instead of widening every row of a big one."""
 
 
 def evaluate(
@@ -31,7 +35,8 @@ def evaluate(
 
     Queries are scored in batches of ``batch_size``: metrics implementing
     `BatchMetric` share one relevance matrix per
-    batch, the others are called query by query. Memory holds one batch, not the run.
+    batch, the others are called query by query. Memory holds one batch, not the run;
+    a batch is cut earlier when its matrices would exceed `BATCH_CELLS`.
     """
     if batch_size < 1:
         raise ValueError(f"batch_size must be >= 1, got {batch_size}")
@@ -41,6 +46,7 @@ def evaluate(
     seen: set[QueryId] = set()
     n_unjudged = n_without_relevant = 0
     pending: list[_Item] = []
+    widest = 0  # the widest row of the pending batch: its matrices are len(pending) x widest
 
     for ranked in runs:
         seen.add(ranked.query_id)
@@ -54,10 +60,17 @@ def evaluate(
             n_without_relevant += 1
         if ranked.segments:
             segments[ranked.query_id] = ranked.segments
+        width = max(len(ranked.docs), len(judgements))
+        if pending and (len(pending) + 1) * max(widest, width) > BATCH_CELLS:
+            _score(pending, bound, values)
+            pending.clear()
+            widest = 0
         pending.append((ranked.query_id, ranked.docs, judgements))
+        widest = max(widest, width)
         if len(pending) == batch_size:
             _score(pending, bound, values)
             pending.clear()
+            widest = 0
     _score(pending, bound, values)
 
     return Evaluation(
