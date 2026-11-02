@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from ranklens.aggregate import compare_segments, segment_values
-from ranklens.core import MetricResult, QueryId, SegmentKey
+from ranklens.core import MetricResult, QueryId, RankLensWarning, SegmentKey
 
 NAMES = ("device", "locale")
 
@@ -88,17 +88,18 @@ def test_small_segments_are_listed_without_statistics() -> None:
     assert bool(pd.isna(tiny["q_value"]))
 
 
-def test_queries_without_segment_values_are_skipped() -> None:
+def test_queries_without_segment_values_are_left_out_with_a_warning() -> None:
     baseline, candidate, segments = build({"mobile/ru": 0.05})
     orphan = QueryId("no-segment")
-    frame = compare_segments(
-        MetricResult("ndcg@10", {**baseline.per_query, orphan: 0.1}),
-        MetricResult("ndcg@10", {**candidate.per_query, orphan: 0.5}),
-        segments,
-        NAMES,
-        n_resamples=200,
-        n_permutations=200,
-    )
+    with pytest.warns(RankLensWarning, match=r"1 paired queries have no value for \['device'"):
+        frame = compare_segments(
+            MetricResult("ndcg@10", {**baseline.per_query, orphan: 0.1}),
+            MetricResult("ndcg@10", {**candidate.per_query, orphan: 0.5}),
+            segments,
+            NAMES,
+            n_resamples=200,
+            n_permutations=200,
+        )
     assert frame["n_queries"].sum() == 40
 
 
@@ -126,6 +127,26 @@ def test_segments_do_not_share_a_random_stream() -> None:
     first, second = frame.to_dict("records")
     assert first["delta"] == second["delta"]
     assert (first["p_value"], first["ci_low"]) != (second["p_value"], second["ci_low"])
+
+
+def test_a_segment_keeps_its_numbers_when_another_segment_appears() -> None:
+    baseline, candidate, segments = build({"mobile/ru": 0.05})
+    alone = compare_segments(
+        baseline, candidate, segments, NAMES, n_resamples=200, n_permutations=200
+    )
+    newcomer = {QueryId(f"new-{i}"): ("a-first", "ru") for i in range(25)}
+    values = dict.fromkeys(newcomer, 0.5)
+    both = compare_segments(
+        MetricResult("ndcg@10", {**baseline.per_query, **values}),
+        MetricResult("ndcg@10", {**candidate.per_query, **values}),
+        {**segments, **newcomer},
+        NAMES,
+        n_resamples=200,
+        n_permutations=200,
+    )
+    kept = both[both["device"] != "a-first"].reset_index(drop=True)
+    columns = ["delta", "ci_low", "ci_high", "p_value"]
+    pd.testing.assert_frame_equal(kept[columns], alone[columns])
 
 
 def test_segment_values_lists_queries_with_their_fields() -> None:
