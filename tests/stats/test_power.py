@@ -102,3 +102,7 @@ def test_mde_matches_what_the_comparison_can_resolve() -> None:
     a = MetricResult("ndcg@10", dict(zip(queries, base.tolist(), strict=True)))
     b = MetricResult("ndcg@10", dict(zip(queries, tiny.tolist(), strict=True)))
     assert not compare(a, b, n_resamples=2_000, n_permutations=2_000, seed=3).significant
+
+
+def test_no_spread_still_needs_two_queries() -> None:
+    assert required_queries(0.01, sd=0.0) == 2

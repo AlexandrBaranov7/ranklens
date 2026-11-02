@@ -33,8 +33,8 @@ def compare(
         raise ValueError(
             f"metrics differ: {baseline.metric!r} and {candidate.metric!r}; compare like with like"
         )
-    _, deltas = paired_deltas(baseline.per_query, candidate.per_query, min_queries=min_queries)
-    common = set(baseline.per_query) & set(candidate.per_query)
+    paired, deltas = paired_deltas(baseline.per_query, candidate.per_query, min_queries=min_queries)
+    common = set(paired)
     bootstrap_seed, permutation_seed = np.random.SeedSequence(seed).generate_state(2)
 
     interval = paired_bootstrap(

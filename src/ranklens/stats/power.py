@@ -37,13 +37,17 @@ mde = minimum_detectable_effect
 
 
 def required_queries(delta: float, sd: float, *, alpha: float = 0.05, power: float = 0.8) -> int:
-    """How many paired queries are needed to detect a difference of ``delta``."""
+    """How many paired queries are needed to detect a difference of ``delta``.
+
+    Never fewer than 2: below that no test can tell a difference from noise, even when
+    ``sd`` is 0.
+    """
     _check(alpha, power)
     if delta <= 0:
         raise ValueError(f"delta must be > 0, got {delta}")
     if sd < 0:
         raise ValueError(f"sd must be >= 0, got {sd}")
-    return int(np.ceil((_factor(alpha, power) * sd / delta) ** 2))
+    return max(2, int(np.ceil((_factor(alpha, power) * sd / delta) ** 2)))
 
 
 def standard_deviation(deltas: Sequence[float]) -> float:
