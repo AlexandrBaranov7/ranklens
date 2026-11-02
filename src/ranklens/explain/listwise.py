@@ -77,8 +77,12 @@ def listwise(
 
 
 def ranking(docs: Sequence[DocId], scores: np.ndarray) -> tuple[DocId, ...]:
-    """Documents by descending score; ties keep the given order (a stable sort)."""
-    order = np.argsort(-scores, kind="stable")
+    """Documents by descending score, ties by descending document id, as in trec_eval.
+
+    Not by row order: a table exported sorted by grade would otherwise break every tie
+    in favour of the relevant document.
+    """
+    order = sorted(range(len(docs)), key=lambda i: (scores[i], docs[i]), reverse=True)
     return tuple(docs[i] for i in order)
 
 

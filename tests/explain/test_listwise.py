@@ -71,9 +71,21 @@ def test_same_seed_same_result_and_bound_metric_accepted() -> None:
     assert (first.n_repeats, first.seed) == (2, 4)
 
 
-def test_ties_keep_the_given_order() -> None:
+def test_ties_are_broken_by_document_id_not_by_row_order() -> None:
     docs = ("a", "b", "c")
-    assert ranking(docs, np.array([1.0, 2.0, 1.0])) == ("b", "a", "c")  # type: ignore[arg-type]
+    assert ranking(docs, np.array([1.0, 2.0, 1.0])) == ("b", "c", "a")  # type: ignore[arg-type]
+    assert ranking(docs[::-1], np.array([1.0, 2.0, 1.0])) == ("b", "c", "a")  # type: ignore[arg-type]
+
+
+def test_row_order_of_the_table_does_not_leak_into_the_metric() -> None:
+    """A coarse model ties a lot; rows sorted by grade must not break ties for it."""
+    coarse = CallableAdapter(lambda x: np.round(x[:, 2]), NAMES)
+    by_grade = []
+    for q in QUERIES:
+        order = sorted(range(len(q.docs)), key=lambda i: -q.judgements[q.docs[i]])
+        docs = tuple(q.docs[i] for i in order)
+        by_grade.append(QueryFeatures(q.query_id, docs, q.features[order], q.judgements))
+    assert listwise(coarse, by_grade).baseline == listwise(coarse, QUERIES).baseline
 
 
 @pytest.mark.parametrize(
