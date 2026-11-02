@@ -71,3 +71,27 @@ def test_segments_of_evaluated_queries_are_kept() -> None:
     ]
     evaluation = evaluate(runs, QRELS, ["mrr"])
     assert dict(evaluation.segments) == {"q1": ("mobile", "ru")}
+
+
+def test_a_huge_query_does_not_widen_the_whole_batch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One query with many judgements gets a batch of its own; the numbers do not change."""
+    import ranklens.metrics.evaluation as evaluation
+    import ranklens.metrics.vectorized as vectorized
+
+    sizes: list[tuple[int, int]] = []
+    real = vectorized.make_batch
+
+    def spy(items: list[tuple[object, object]]) -> object:
+        batch = real(items)  # type: ignore[arg-type]
+        sizes.append(batch.ideal.shape)
+        return batch
+
+    qrels = {QueryId(f"q{i}"): {DocId("a"): 1.0, DocId("b"): 0.0} for i in range(6)}
+    qrels[QueryId("q3")] = {DocId(f"d{j}"): 1.0 for j in range(1000)}
+    runs = [RankedList(QueryId(f"q{i}"), (DocId("a"), DocId("b"))) for i in range(6)]
+    metrics = ["ndcg", "map@2"]
+    expected = evaluate(runs, qrels, metrics, batch_size=1)
+    monkeypatch.setattr(evaluation, "make_batch", spy)
+    monkeypatch.setattr(evaluation, "BATCH_CELLS", 1000)
+    assert evaluate(runs, qrels, metrics) == expected
+    assert sizes == [(3, 2), (1, 1000), (2, 2)]
