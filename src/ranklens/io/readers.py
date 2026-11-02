@@ -58,6 +58,19 @@ def iter_run(
         raise ValueError('order="rank" requires a rank column in the schema')
     if order == "score" and schema.score is None:
         raise ValueError('order="score" requires a score column in the schema')
+    return _rankings(source, fmt, schema, order, check, strict, errors)
+
+
+def _rankings(
+    source: Source,
+    fmt: FormatName,
+    schema: RunSchema,
+    order: Literal["file", "rank", "score"],
+    check: Literal["grouped", "sorted"],
+    strict: bool,
+    errors: ErrorCollector | None,
+) -> Iterator[RankedList]:
+    """The generator behind `iter_run`, which checks its arguments when it is called."""
     name = source_name(source)
     collector = errors if errors is not None else ErrorCollector()
     on_error = _raise if strict else collector.record
