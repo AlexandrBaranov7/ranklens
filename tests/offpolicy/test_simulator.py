@@ -98,3 +98,16 @@ def test_reweighted_clicks_recover_the_true_value_of_the_logging_policy() -> Non
 def test_invalid_arguments(call: object, message: str) -> None:
     with pytest.raises(ValueError, match=message):
         call()  # type: ignore[operator]
+
+
+def test_the_truth_is_read_only_compared_by_value_and_short_in_repr() -> None:
+    judged = {QueryId("q"): {DocId("a"): 2.0}}
+    world = ClickWorld(judged)
+    judged[QueryId("q")][DocId("a")] = 0.0
+    assert world.relevance[QueryId("q")][DocId("a")] == 2.0
+    with pytest.raises(TypeError):
+        world.relevance[QueryId("q")][DocId("a")] = 0.0  # type: ignore[index]
+    assert world == ClickWorld({QueryId("q"): {DocId("a"): 2.0}})
+    assert repr(ClickWorld.random()) == "ClickWorld(200 queries, 4000 documents)"
+    with pytest.raises(TypeError, match="unhashable"):
+        hash(world)
