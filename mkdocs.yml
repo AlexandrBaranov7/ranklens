@@ -96,10 +96,5 @@ extra_css:
   - https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css
   - stylesheets/brand.css
 
-exclude_docs: |
-  decisions.md
-  llm-log.md
-  defense.md
-
 watch:
   - src
