@@ -121,7 +121,8 @@ def impressions_from_events(
         joined = joined[inside]
 
     strongest = joined.groupby([c.request_id, c.doc_id], sort=False)["_reward"].max()
-    rewards = shown.join(strongest, on=[c.request_id, c.doc_id])["_reward"].fillna(0.0)
+    rewards = shown.join(strongest, on=[c.request_id, c.doc_id])["_reward"]
+    rewards = rewards.astype("float64").fillna(0.0)  # object dtype when nothing matched
     shown = shown.assign(_reward=rewards.to_numpy())
 
     impressions = tuple(
