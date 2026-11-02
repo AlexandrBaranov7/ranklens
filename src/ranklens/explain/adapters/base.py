@@ -1,7 +1,7 @@
 """What explanation needs from a model: scores for a matrix of features, and names.
 
 The protocol uses numpy arrays, so it lives here and not in ``core``, which depends on
-the standard library only (Q-9). No adapter imports its library: a model object exists
+the standard library only. No adapter imports its library: a model object exists
 only if its library is installed, and the adapters call the model's own methods.
 """
 

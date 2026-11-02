@@ -117,7 +117,7 @@ jobs:
           cd /tmp
           PATH=/tmp/clean/bin:$PATH /tmp/clean/bin/python -I /tmp/tutorial_smoke.py
 
-  # report only: shared runners are too noisy for a hard regression gate (Q-11)
+  # report only: shared runners are too noisy for a hard regression gate
   bench:
     runs-on: ubuntu-latest
     continue-on-error: true

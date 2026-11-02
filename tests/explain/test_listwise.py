@@ -1,4 +1,4 @@
-"""Listwise attribution on the metric, and groups of correlated features (DoD of week 11)."""
+"""Listwise attribution on the metric, and groups of correlated features."""
 
 import importlib
 import os

@@ -37,7 +37,7 @@ def test_the_report_gets_the_mode_open_would_give(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("error", [ValueError("render failed"), KeyboardInterrupt()])
 def test_a_failure_while_writing_keeps_the_old_report(tmp_path: Path, error: BaseException) -> None:
-    """DoD of week 12: an interrupted write leaves no partial file."""
+    """An interrupted write leaves no partial file."""
     target = tmp_path / "report.html"
     target.write_text("old", encoding="utf-8")
     with pytest.raises(type(error)):

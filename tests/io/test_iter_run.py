@@ -122,7 +122,7 @@ def test_missing_column_is_fatal_in_non_strict_mode(tmp_path: Path) -> None:
         list(iter_run(path))
 
 
-# --- input contract (Q-1) -------------------------------------------------
+# --- input contract -------------------------------------------------------
 
 
 def test_ungrouped_query_raises_even_in_non_strict_mode(tmp_path: Path) -> None:
