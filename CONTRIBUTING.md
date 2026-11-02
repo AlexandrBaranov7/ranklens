@@ -118,11 +118,12 @@ poetry run pytest --cov
 | `io` | `core` | stdlib; `pyarrow` лениво |
 | `metrics` | `core` | `numpy` |
 | `stats` | `core` | `numpy` |
-| `offpolicy` | `core`, `metrics`, `stats` | `numpy` |
+| `offpolicy` | `core`, `metrics`, `stats` | `numpy`, `pandas` |
 | `explain` | `core`, `metrics` | `numpy`; модели и `scipy` лениво |
 | `aggregate` | `core`, `metrics`, `stats` | `numpy`, `pandas` |
 | `viz` | `core` | `plotly` лениво |
 | `report` | `core`, `viz` | `pandas` |
+| `api` | `core`, `io`, `metrics`, `stats`, `aggregate`, `offpolicy`, `explain` | `numpy`, `pandas` |
 | `cli` | всё | stdlib |
 
 Смысл правил:
@@ -135,7 +136,7 @@ poetry run pytest --cov
 3. **`viz` не считает математику.** Принимает готовый `*Result` и рисует.
    Нужна новая величина — она считается в `metrics`/`stats`.
 4. **`io` не знает про метрики.** Отдаёт `RankedList`, дальше не его дело.
-5. **pandas — только в `aggregate` и `report`.** Горячие циклы на Python/numpy,
+5. **pandas — только в `aggregate`, `offpolicy`, `report` и `api`.** Горячие циклы на Python/numpy,
    иначе теряется потоковость.
 6. **Опциональные зависимости изолированы.** Импорт — внутри функции
    или адаптера, при отсутствии пакета — ошибка с командой установки.
@@ -200,7 +201,7 @@ poetry run pytest --cov
 ## 6. Тесты
 
 - Код без тестов не мержится. Тесты пишутся в том же PR, что и код.
-- Покрытие не ниже 85% (гейт в CI), но покрытие — нижняя граница, а не цель.
+- Покрытие не ниже 90% (гейт в CI), но покрытие — нижняя граница, а не цель.
 - Уровни тестов:
   1. точные значения на примерах, посчитанных вручную;
   2. инварианты через Hypothesis;
