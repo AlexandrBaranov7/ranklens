@@ -25,7 +25,8 @@ def correlated_groups(
 ) -> tuple[tuple[str, ...], ...]:
     """Groups of two or more features linked by |correlation| >= ``threshold``.
 
-    Correlation is computed over all documents of all queries. Features in no group are
+    Correlation is computed over all documents of all queries, pairwise over the documents
+    where both values are present (``nan`` is a missing value). Features in no group are
     not listed; a constant feature correlates with nothing.
     """
     if not 0.0 < threshold <= 1.0:
@@ -37,7 +38,10 @@ def correlated_groups(
     if pooled.shape[1] != len(feature_names):
         raise ValueError(f"{len(feature_names)} names for {pooled.shape[1]} feature columns")
     with np.errstate(invalid="ignore", divide="ignore"):
-        correlation = np.nan_to_num(np.corrcoef(pooled, rowvar=False), nan=0.0)
+        # pairwise over the documents where both values are present: one missing value
+        # must not cut a feature out of every group
+        pairwise = np.ma.corrcoef(np.ma.masked_invalid(pooled), rowvar=False)  # type: ignore[no-untyped-call]
+    correlation = np.nan_to_num(pairwise.filled(np.nan), nan=0.0)
 
     parent = list(range(len(feature_names)))
 
