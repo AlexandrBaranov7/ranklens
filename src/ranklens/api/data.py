@@ -37,9 +37,14 @@ def ids(column: pd.Series) -> pd.Series:
     """Ids as the file readers give them: 7.0 is "7"; a missing or blank id is <NA>."""
     if column.dtype == object or pd.api.types.is_float_dtype(column):
         # pandas stores integer ids with gaps as floats: 7.0 must match "7" in the qrels
-        column = column.map(scalar_text, na_action="ignore")
+        column = column.map(_id_text, na_action="ignore")
     text = column.astype("string").str.strip()
     return text.mask(text == "")
+
+
+def _id_text(value: object) -> str | None:
+    # an object column may hold numpy scalars, which the file readers never see
+    return scalar_text(value.item() if isinstance(value, np.generic) else value)
 
 
 def keep_valid(checks: Mapping[str, Any], where: str) -> npt.NDArray[np.bool_]:
