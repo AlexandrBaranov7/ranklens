@@ -122,6 +122,17 @@ def test_rows_with_an_empty_id_are_skipped_not_given_to_another_query(dtype: str
     assert docs(made) == {"a": ("x",), "b": ("z",)}
 
 
+def test_mixed_id_columns() -> None:
+    table = pd.DataFrame(
+        {"qid": pd.Series([np.int64(5), 5, "a", 2.0], dtype=object), "sku": ["x", "y", "z", "w"]}
+    )
+    assert docs(rl.run(table, query="qid", doc="sku")) == {
+        "5": ("x", "y"),
+        "a": ("z",),
+        "2": ("w",),
+    }
+
+
 def test_scores_and_ranks_that_are_not_numbers_are_skipped() -> None:
     table = pd.DataFrame(
         {
