@@ -97,7 +97,7 @@ def test_metric_not_found_suggests_closest() -> None:
 def test_metric_not_found_without_close_match() -> None:
     message = str(MetricNotFoundError("zzz", ["ndcg"]))
     assert "did you mean" not in message
-    assert "Available: ndcg" in message
+    assert message == "unknown metric 'zzz'. Available: ndcg"
 
 
 def test_metric_not_found_accepts_one_shot_iterable() -> None:
@@ -122,8 +122,9 @@ def test_ungrouped_input_names_query_and_fix() -> None:
 def test_missing_column_suggests_closest() -> None:
     message = str(MissingColumnError("query_id", ["qid", "doc_id", "query"], path="run.csv"))
     assert message.startswith("run.csv: required column 'query_id' is missing")
-    assert "did you mean 'query'?" in message
-    assert "Available: qid, doc_id, query" in message
+    assert "did you mean 'query'? Available: qid, doc_id, query" in message
+    plain = str(MissingColumnError("zzz", ["qid"]))
+    assert plain == "input: required column 'zzz' is missing. Available: qid"
 
 
 def test_missing_column_without_header() -> None:

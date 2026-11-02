@@ -130,7 +130,7 @@ class MissingColumnError(DataError):
         if close:
             message += f"; did you mean {close[0]!r}?"
         listing = ", ".join(self.available) if self.available else "no columns found"
-        return f"{message} Available: {listing}"
+        return f"{message}{' ' if close else '. '}Available: {listing}"
 
 
 class DuplicateDocumentError(DataError):
@@ -178,7 +178,7 @@ class MetricNotFoundError(ConfigError):
         if close:
             message += f"; did you mean {close[0]!r}?"
         listing = ", ".join(self.available) if self.available else "none registered"
-        return f"{message} Available: {listing}"
+        return f"{message}{' ' if close else '. '}Available: {listing}"
 
 
 class MetricSpecError(ConfigError):
