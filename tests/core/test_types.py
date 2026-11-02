@@ -68,3 +68,8 @@ class TestRankedList:
         head = ranked.top(k)
         assert len(head) == min(k, len(ids))
         assert ranked.docs[: len(head)] == head
+
+
+def test_segments_must_be_a_tuple() -> None:
+    with pytest.raises(TypeError, match="segments must be a tuple, got list"):
+        RankedList(QueryId("q"), (DocId("a"),), segments=["mobile"])  # type: ignore[arg-type]

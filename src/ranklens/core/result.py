@@ -1,10 +1,13 @@
 """Immutable results passed from computing layers to reporting layers."""
 
+import contextlib
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
+from ranklens.core.exceptions import MetricSpecError
+from ranklens.core.registry import parse_spec
 from ranklens.core.types import QueryId, SegmentKey
 
 __all__ = [
@@ -94,8 +97,12 @@ class Evaluation:
     segments: Mapping[QueryId, SegmentKey] = field(default_factory=lambda: MappingProxyType({}))
 
     def __getitem__(self, metric: str) -> MetricResult:
+        """The result of ``metric``, written as it was resolved or in any spelling of it."""
+        labels = {metric}
+        with contextlib.suppress(MetricSpecError):
+            labels.add(str(parse_spec(metric)))  # "NDCG@010" is "ndcg@10"
         for result in self.metrics:
-            if result.metric == metric:
+            if result.metric in labels:
                 return result
         raise KeyError(metric)
 
