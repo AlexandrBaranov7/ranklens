@@ -21,6 +21,9 @@ __all__ = ["EXACT_MAX_FEATURES", "pairwise"]
 EXACT_MAX_FEATURES = 12
 """2^12 = 4096 scored points: still one cheap call; beyond it orders are sampled."""
 
+SAMPLED_CELLS = 2**22
+"""Feature values scored per model call when orders are sampled (32 MB of float64)."""
+
 
 def pairwise(
     model: ScorerAdapter,
@@ -84,9 +87,15 @@ def _sampled(
     orders = np.array([rng.permutation(k) for _ in range(n_permutations)])
     # point t of order p takes from B the features placed before t in that order
     place = np.argsort(orders, axis=1)  # place[p, f]: position of feature f in order p
-    taken = place[:, None, :] < np.arange(k + 1)[None, :, None]
-    values = model.score(np.where(taken.reshape(-1, k), x_b, x_a)).reshape(n_permutations, k + 1)
-    steps = np.diff(values, axis=1)  # change made by order[p, t]
+    steps = np.empty((n_permutations, k))  # change made by order[p, t]
+    # each order scores k + 1 points of k features: a few orders per call bound the memory
+    per_call = max(1, SAMPLED_CELLS // ((k + 1) * k))
+    for start in range(0, n_permutations, per_call):
+        chunk = place[start : start + per_call]
+        taken = chunk[:, None, :] < np.arange(k + 1)[None, :, None]
+        points = np.where(taken.reshape(-1, k), x_b, x_a)
+        values = model.score(points).reshape(len(chunk), k + 1)
+        steps[start : start + len(chunk)] = np.diff(values, axis=1)
     phi = np.zeros(k)
     np.add.at(phi, orders.ravel(), steps.ravel())
     return phi / n_permutations

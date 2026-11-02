@@ -129,3 +129,26 @@ def test_a_trained_model_is_explained_by_the_feature_that_generated_the_data() -
     ]
     assert pairs_with_a_gap  # the sample has pairs of different relevance
     assert all(name == "f2" for name in pairs_with_a_gap)
+
+
+def test_sampled_orders_are_scored_in_chunks_with_the_same_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = importlib.import_module("ranklens.explain.pairwise")  # the name is the function
+    k = EXACT_MAX_FEATURES + 3
+    rng = np.random.default_rng(2)
+    calls: list[int] = []
+
+    def score(x: np.ndarray) -> np.ndarray:
+        calls.append(len(x))
+        values: np.ndarray = np.tanh(x).sum(axis=1) + x[:, 0] * x[:, 1]
+        return values
+
+    model = CallableAdapter(score, [f"f{i}" for i in range(k)])
+    a, b = rng.normal(size=k), rng.normal(size=k)
+    whole = pairwise(model, a, b, n_permutations=50, seed=3)
+    monkeypatch.setattr(module, "SAMPLED_CELLS", 7 * (k + 1) * k)  # 7 orders per call
+    calls.clear()
+    chunked = pairwise(model, a, b, n_permutations=50, seed=3)
+    assert chunked.contributions == pytest.approx(whole.contributions, abs=1e-12)
+    assert calls[:-1] == [7 * (k + 1)] * 7 + [1 * (k + 1)]  # the last call scores a and b
