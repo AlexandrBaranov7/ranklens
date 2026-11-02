@@ -8,7 +8,7 @@ import pytest
 
 import ranklens as rl
 from ranklens.aggregate import compare_segments
-from ranklens.core import MetricResult, QueryId
+from ranklens.core import MetricResult, QueryId, RankLensWarning
 from ranklens.metrics import evaluate as evaluate_runs
 from ranklens.stats import compare as compare_results
 from ranklens.stats import minimum_detectable_effect, standard_deviation
@@ -145,3 +145,10 @@ def test_coverage_and_its_warnings() -> None:
 def test_empty_side_is_an_error() -> None:
     with pytest.raises(ValueError, match="at least one run"):
         rl.compare([], runs(CAND[:1]), QRELS, ["mrr"])
+
+
+def test_runs_that_disagree_on_segments_warn() -> None:
+    relabelled = CAND[0].assign(device=lambda t: t["device"].where(t["q"] != 1, "tablet"))
+    candidate = rl.run(relabelled, query="q", doc="d", score="score", segments="device")
+    with pytest.warns(RankLensWarning, match="1 queries have different segment values"):
+        rl.compare(runs(BASE)[0], candidate, QRELS, ["ndcg@10"], by="device", **FAST)
