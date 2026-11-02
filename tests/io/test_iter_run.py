@@ -51,9 +51,10 @@ def test_order_by_rank_is_stable(tmp_path: Path) -> None:
 
 
 def test_order_by_rank_requires_rank_column(tmp_path: Path) -> None:
+    """Arguments are checked when iter_run is called, not when the first ranking is read."""
     path = write(tmp_path / "run.csv", "query_id,doc_id\n")
     with pytest.raises(ValueError, match="requires a rank column"):
-        next(iter_run(path, order="rank"))
+        iter_run(path, order="rank")
 
 
 def test_trec_file_uses_trec_schema_by_default(tmp_path: Path) -> None:

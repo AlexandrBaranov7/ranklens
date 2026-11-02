@@ -55,7 +55,7 @@ def test_events_are_translated_by_the_scale(tmp_path: Path) -> None:
 def test_event_column_requires_a_scale(tmp_path: Path) -> None:
     path = write(tmp_path / "log.csv", HEADER)
     with pytest.raises(ValueError, match="needs a FeedbackScale"):
-        list(iter_clicklog(path, schema=ClickLogSchema(reward=None, event="event")))
+        iter_clicklog(path, schema=ClickLogSchema(reward=None, event="event"))
 
 
 def test_schema_needs_exactly_one_feedback_column() -> None:
@@ -67,7 +67,7 @@ def test_schema_needs_exactly_one_feedback_column() -> None:
 
 def test_trec_is_not_a_log_format(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="TREC has no feedback log"):
-        list(iter_clicklog(write(tmp_path / "log.trec", "")))
+        iter_clicklog(write(tmp_path / "log.trec", ""))
 
 
 def test_missing_column_is_reported(tmp_path: Path) -> None:

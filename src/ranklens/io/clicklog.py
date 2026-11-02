@@ -68,6 +68,18 @@ def iter_clicklog(
     fmt = fmt or detect_format(source)
     if fmt == "trec":
         raise ValueError("TREC has no feedback log format; use csv, tsv, jsonl or parquet")
+    return _impressions(source, fmt, schema, scale, strict, errors)
+
+
+def _impressions(
+    source: Source,
+    fmt: FormatName,
+    schema: ClickLogSchema,
+    scale: FeedbackScale | None,
+    strict: bool,
+    errors: ErrorCollector | None,
+) -> Iterator[Impression]:
+    """The generator behind `iter_clicklog`, which checks its arguments when it is called."""
     name = source_name(source)
     collector = errors if errors is not None else ErrorCollector()
     on_error = _raise if strict else collector.record
