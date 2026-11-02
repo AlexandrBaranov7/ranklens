@@ -12,13 +12,14 @@ written to a temporary file next to the target and moved over it only when compl
   to an empty file;
 - the file is **closed before** ``replace``/``unlink``, also when flushing failed:
   Windows cannot rename or remove an open file;
-- ``mkstemp`` creates the file with mode 0600; the report gets the usual mode
-  (0666 minus the umask), as ``open`` would give it;
+- ``mkstemp`` creates the file with mode 0600; the report gets the mode ``open``
+  would leave: the mode of the file it replaces, or 0666 minus the umask for a new one;
 - the temporary file is removed in ``finally`` even if ``replace`` itself fails;
 - the exception is re-raised (``__exit__`` returns False): a failed report is an error.
 """
 
 import os
+import stat
 import tempfile
 from pathlib import Path
 from types import TracebackType
@@ -55,7 +56,7 @@ class AtomicReport:
                 os.fsync(self._fh.fileno())
             self._fh.close()
             if exc_type is None:
-                self._tmp.chmod(0o666 & ~_umask())
+                self._tmp.chmod(_mode_of(self.path))
                 self._tmp.replace(self.path)
         finally:
             if not self._fh.closed:  # flush or fsync failed: still close before unlinking
@@ -63,6 +64,14 @@ class AtomicReport:
             if self._tmp.exists():
                 self._tmp.unlink()
         return False
+
+
+def _mode_of(path: Path) -> int:
+    """The mode ``open(path, "w")`` would leave: an existing file keeps its own."""
+    try:
+        return stat.S_IMODE(path.stat().st_mode)
+    except FileNotFoundError:
+        return 0o666 & ~_umask()
 
 
 def _umask() -> int:
