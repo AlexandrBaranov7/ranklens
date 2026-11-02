@@ -23,6 +23,7 @@ from ranklens.core.exceptions import (
     MissingColumnError,
     UnsupportedFormatError,
 )
+from ranklens.core.types import scalar_text
 
 __all__ = [
     "ArrowStreamExportable",
@@ -222,23 +223,6 @@ def scalar_fields(
                 return {}, f"field {key!r} is empty"
             return {}, f"field {key!r} has unsupported type {type(value).__name__}"
     return fields, ""
-
-
-def scalar_text(value: object) -> str | None:
-    """A typed value as the text readers store it, or None when it is missing or not a scalar."""
-    # bool is an int subclass, but True as an id or score is a data error
-    if isinstance(value, str):
-        return value
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return str(value)
-    if isinstance(value, float):
-        if math.isnan(value):
-            return None
-        # pandas turns integer ids with gaps into floats: 1.0 must still match "1"
-        return str(int(value)) if value.is_integer() else repr(value)
-    return None
 
 
 def _iter_trec(
