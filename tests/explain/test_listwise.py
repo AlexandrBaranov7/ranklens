@@ -137,6 +137,16 @@ def test_single_linkage_chains_and_constants_join_nothing() -> None:
     assert correlated_groups(queries, names, threshold=0.99) == ()
 
 
+def test_a_missing_value_does_not_cut_a_feature_out_of_its_group() -> None:
+    first = QUERIES[0]
+    gap = first.features.copy()
+    gap[0, 3] = np.nan  # one missing value of the twin f3
+    with_gap = [QueryFeatures(first.query_id, first.docs, gap, first.judgements), *QUERIES[1:]]
+    assert (
+        correlated_groups(with_gap, NAMES) == correlated_groups(QUERIES, NAMES) == (("f2", "f3"),)
+    )
+
+
 def test_grouping_arguments() -> None:
     with pytest.raises(ValueError, match=r"threshold must be in \(0, 1\]"):
         correlated_groups(QUERIES, NAMES, threshold=0.0)
