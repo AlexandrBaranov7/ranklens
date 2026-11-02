@@ -27,6 +27,17 @@ def test_writes_the_report_and_leaves_nothing_behind(tmp_path: Path) -> None:
     assert leftovers(tmp_path) == []
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows has no permission bits")
+def test_a_replaced_report_keeps_its_mode(tmp_path: Path) -> None:
+    target = tmp_path / "report.html"
+    target.write_text("old", encoding="utf-8")
+    target.chmod(0o600)
+    with AtomicReport(target) as fh:
+        fh.write("new")
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+    assert target.read_text(encoding="utf-8") == "new"
+
+
 def test_the_report_gets_the_mode_open_would_give(tmp_path: Path) -> None:
     with AtomicReport(tmp_path / "report.html") as fh:
         fh.write("x")
