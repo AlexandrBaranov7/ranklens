@@ -125,7 +125,7 @@ def test_queries_without_relevant_documents_are_reported_not_diagnosed(
         table.writelines(f"qzero,d{i},0,{i},{i},{i},{i}\n" for i in range(3))
     assert main(run(files, "named", "--top-worst", "40")) == EXIT_OK
     out = capsys.readouterr().out
-    assert "queries score 0; those without relevant documents are not diagnosed" in out
+    assert "queries score 0; those that score 0 in any order are not diagnosed" in out
     assert "qzero" not in out.split("worst")[1]
 
 

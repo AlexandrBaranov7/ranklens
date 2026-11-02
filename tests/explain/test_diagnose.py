@@ -66,6 +66,13 @@ def test_queries_without_relevant_documents_are_not_diagnosed() -> None:
     assert len(worst) == 5
 
 
+def test_queries_the_metric_cannot_score_are_not_diagnosed() -> None:
+    """For mrr a grade of 0.5 is not relevant: the query scores 0 whatever the model does."""
+    half = QueryFeatures.of("q-half", ["a", "b"], [[1.0, 0.0], [2.0, 0.0]], {"a": 0.5, "b": 0})
+    assert "q-half" not in {d.query_id for d in diagnose(MODEL, [half, *queries(5)], "mrr@5")}
+    assert "q-half" in {d.query_id for d in diagnose(MODEL, [half, *queries(5)], "ndcg@5")}
+
+
 def test_top_larger_than_the_pool_and_empty_pool() -> None:
     assert len(diagnose(MODEL, queries(3), top=10)) == 3
     assert diagnose(MODEL, [], top=10) == ()

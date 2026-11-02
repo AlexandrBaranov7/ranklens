@@ -560,7 +560,7 @@ def _explain_table(
     without = sum(1 for value in overall.baseline.per_query.values() if value == 0)
     if without:
         lines.append(
-            f"{without} queries score 0; those without relevant documents are not diagnosed"
+            f"{without} queries score 0; those that score 0 in any order are not diagnosed"
         )
     if by_position:
         lines.append("features taken by position: the model has no feature names")
