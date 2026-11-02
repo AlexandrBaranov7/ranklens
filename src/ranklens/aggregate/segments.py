@@ -23,7 +23,7 @@ from ranklens.core.result import ComparisonResult, MetricResult
 from ranklens.core.types import QueryId, SegmentKey
 from ranklens.stats import MIN_QUERIES, adjust, compare
 
-__all__ = ["compare_segments", "segment_values"]
+__all__ = ["check_same_segments", "compare_segments", "segment_values"]
 
 COLUMNS = (
     "n_queries",
@@ -116,6 +116,26 @@ def compare_segments(
 
 def _row(result: ComparisonResult) -> dict[str, object]:
     return {column: getattr(result, column) for column in COLUMNS}
+
+
+def check_same_segments(
+    baseline: Mapping[QueryId, SegmentKey], candidate: Mapping[QueryId, SegmentKey]
+) -> None:
+    """Warn when a query has different segment values in the two runs.
+
+    A segment describes the query, not the model, so both runs should agree; when they
+    do not, callers slice by the baseline and the warning says so.
+    """
+    differ = sorted(q for q in baseline.keys() & candidate.keys() if baseline[q] != candidate[q])
+    if differ:
+        first = differ[0]
+        warnings.warn(
+            f"{len(differ)} queries have different segment values in the two runs, "
+            f"e.g. {first!r}: {baseline[first]} and {candidate[first]}; "
+            "the baseline's values are used",
+            RankLensWarning,
+            stacklevel=3,
+        )
 
 
 def _stream(seed: int, key: SegmentKey) -> int:

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from ranklens.aggregate import compare_segments
+from ranklens.aggregate import check_same_segments, compare_segments
 from ranklens.api.data import Run
 from ranklens.core.registry import BoundMetric
 from ranklens.core.result import MetricResult
@@ -149,6 +149,8 @@ def compare(
         )
     else:
         segments, names = _segments(by, side_a[0])
+        if not isinstance(by, Mapping):
+            check_same_segments(segments, _segments(by, side_b[0])[0])
         queries: dict[SegmentKey, list[QueryId]] = {}
         for q, key in segments.items():
             queries.setdefault(key, []).append(q)

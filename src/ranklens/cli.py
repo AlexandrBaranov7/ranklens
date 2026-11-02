@@ -384,14 +384,16 @@ def _comparison_row(result: ComparisonResult) -> Row:
 def _segment_rows(
     baseline: Evaluation, candidate: Evaluation, args: argparse.Namespace
 ) -> list[Row]:
-    from ranklens.aggregate import compare_segments  # pandas is only needed for slicing
+    # pandas is only needed for slicing
+    from ranklens.aggregate import check_same_segments, compare_segments
 
+    check_same_segments(baseline.segments, candidate.segments)
     rows: list[Row] = []
     for a, b in zip(baseline.metrics, candidate.metrics, strict=True):
         frame = compare_segments(
             a,
             b,
-            baseline.segments,  # a paired query has the same segment in both runs
+            baseline.segments,
             args.segments,
             alpha=args.alpha,
             n_resamples=args.resamples,

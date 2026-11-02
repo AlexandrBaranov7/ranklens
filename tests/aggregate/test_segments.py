@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ranklens.aggregate import compare_segments, segment_values
+from ranklens.aggregate import check_same_segments, compare_segments, segment_values
 from ranklens.core import MetricResult, QueryId, RankLensWarning, SegmentKey
 
 NAMES = ("device", "locale")
@@ -161,3 +161,10 @@ def test_segment_fields_are_required() -> None:
     baseline, candidate, segments = build({"mobile/ru": 0.0}, n_per_segment=2)
     with pytest.raises(ValueError, match="at least one segment field"):
         compare_segments(baseline, candidate, segments, ())
+
+
+def test_check_same_segments() -> None:
+    q1, q2, q3 = QueryId("q1"), QueryId("q2"), QueryId("q3")
+    check_same_segments({q1: ("a",), q2: ("b",)}, {q1: ("a",), q3: ("c",)})  # only paired count
+    with pytest.warns(RankLensWarning, match=r"'q2': \('b',\) and \('c',\)"):
+        check_same_segments({q1: ("a",), q2: ("b",)}, {q1: ("a",), q2: ("c",)})
