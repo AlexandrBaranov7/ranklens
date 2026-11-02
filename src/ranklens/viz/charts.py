@@ -66,8 +66,12 @@ def segment_gains(comparisons: Mapping[str, ComparisonResult]) -> Figure:
                 "array": [r.ci_high - r.delta for r in results],
                 "arrayminus": [r.delta - r.ci_low for r in results],
             },
-            customdata=[r.q_value if r.q_value is not None else r.p_value for r in results],
-            hovertemplate="%{y}: %{x:+.4f}, q = %{customdata:.4f}<extra></extra>",
+            # q after the correction, p before it: the hover names which one it shows
+            customdata=[
+                f"q = {r.q_value:.4f}" if r.q_value is not None else f"p = {r.p_value:.4f}"
+                for r in results
+            ],
+            hovertemplate="%{y}: %{x:+.4f}, %{customdata}<extra></extra>",
         )
     )
     return figure.update_layout(xaxis_title="difference B - A", yaxis_title="segment")
