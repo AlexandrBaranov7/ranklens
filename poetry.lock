@@ -3462,4 +3462,4 @@ viz = ["plotly"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11"
-content-hash = "32195e17540385a02e931eae54082c83614166a0e61da0f36bf05434254bc998"
+content-hash = "a832088175eac74b050f35bf0bd7e8ce98e7673ae0d3866f7f27b4a701564723"

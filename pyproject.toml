@@ -27,7 +27,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-arrow = ["pyarrow>=15"]
+arrow = ["pyarrow>=16"]
 viz = ["plotly>=5.18"]
 models = ["catboost", "lightgbm", "xgboost", "scikit-learn"]
 neural = ["onnxruntime>=1.17"]
@@ -50,7 +50,7 @@ dev = [
   "mypy>=1.11",
   "ruff>=0.6",
   "pre-commit>=3.7",
-  "pyarrow>=15",
+  "pyarrow>=16",
   "polars>=1",
   "pandas-stubs",
   "mkdocs>=1.6,<2",  # 2.0 drops plugins and themes

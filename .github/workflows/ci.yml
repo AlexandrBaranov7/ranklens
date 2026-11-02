@@ -64,6 +64,21 @@ jobs:
       # statistical validation runs once, in its own job
       - run: poetry run pytest -m "not slow" --cov --cov-report=term-missing
 
+  # the lock file tests the newest versions; these are the lowest pyproject.toml allows
+  min-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: pipx install "poetry==$POETRY_VERSION"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: poetry
+      - run: poetry install
+      # keep in sync with the lower bounds in pyproject.toml
+      - run: poetry run pip install "numpy==1.26.0" "pandas==2.2.0" "pyarrow==16.0.0"
+      - run: poetry run pytest
+
   statistics:
     runs-on: ubuntu-latest
     steps:
