@@ -76,7 +76,8 @@ class Evaluation:
     """Metrics of one run and what happened to its queries.
 
     - ``n_queries``: evaluated queries (in the run and in the qrels);
-    - ``n_without_relevant``: evaluated queries without relevant documents — they score 0;
+    - ``n_without_relevant``: evaluated queries without a positive grade — every metric
+      scores 0 for them (``map`` and ``mrr`` also score 0 when no grade reaches ``rel``);
     - ``n_unjudged``: queries of the run absent from the qrels — skipped, as in trec_eval;
     - ``n_not_retrieved``: queries of the qrels absent from the run — ignored, as in trec_eval.
 
