@@ -49,6 +49,11 @@ def ppi_compare(
     ``gold_*`` under gold judgements (a random sample of queries). Every gold query
     must also be measured under proxy judgements. ``lam`` fixes the weight of the
     proxy part: 0 is gold only, 1 is classic PPI; None estimates it (PPI++).
+
+    With fewer than two proxy-only queries the spread of the proxy part cannot be
+    measured, so the weight is 0 whatever ``lam`` says: an interval that ignores that
+    spread would be too narrow. Queries measured under proxy judgements in only one of
+    the runs are not used.
     """
     if not 0.0 < alpha < 1.0:
         raise ValueError(f"alpha must be in (0, 1), got {alpha}")
@@ -79,8 +84,8 @@ def ppi_compare(
     g, p_g = _array(gold, queries_g), _array(proxy, queries_g)
     p_u = _array(proxy, queries_u)
     weight = _optimal_lambda(g, p_g, p_u) if lam is None else float(lam)
-    if not queries_u:
-        weight = 0.0  # every query is gold: nothing to borrow from the proxy
+    if len(queries_u) < 2:
+        weight = 0.0  # no proxy-only spread to weigh against the gold one
 
     delta, variance = _estimate(g, p_g, p_u, weight)
     half = _NORMAL.inv_cdf(1.0 - alpha / 2.0) * math.sqrt(variance)

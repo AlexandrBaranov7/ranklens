@@ -62,14 +62,15 @@ def test_every_query_gold_means_gold_only() -> None:
     assert estimate.delta == pytest.approx(0.05)
 
 
-def test_a_single_proxy_only_query_adds_its_mean_but_no_spread() -> None:
+def test_a_single_proxy_only_query_cannot_be_weighed_so_gold_alone_decides() -> None:
     proxy_a, proxy_b = (
         result({"u1": 0.5, "g1": 0.5, "g2": 0.5}),
         result({"u1": 0.7, "g1": 0.6, "g2": 0.8}),
     )
     estimate = ppi_compare(proxy_a, proxy_b, GOLD_A, GOLD_B, lam=1.0)
-    assert estimate.delta == pytest.approx(0.2 - 0.15)
-    # only the rectifier varies: Var(-0.1, -0.2) / 2
+    assert (estimate.lam, estimate.n_proxy) == (0.0, 1)
+    assert estimate.delta == pytest.approx(0.05)
+    # gold only: Var(0.0, 0.1) / 2
     assert estimate.ci_high - estimate.delta == pytest.approx(1.959964 * math.sqrt(0.0025))
 
 
