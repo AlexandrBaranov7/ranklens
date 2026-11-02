@@ -12,12 +12,13 @@ This tests the mathematics, not the code: an estimator that is off here is wrong
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from types import MappingProxyType
 
 import numpy as np
 
 from ranklens.core.feedback import Impression
-from ranklens.core.types import DocId, Qrels, QueryId, RankedList
+from ranklens.core.types import DocId, QueryId, RankedList
 from ranklens.offpolicy.propensity import Discount, Propensity
 
 __all__ = ["ClickWorld"]
@@ -28,9 +29,22 @@ _GRADE_SHARES = (0.5, 0.25, 0.13, 0.08, 0.04)  # most documents are not relevant
 
 @dataclass(frozen=True, slots=True)
 class ClickWorld:
-    """Queries with known relevance; builds policies, logs and true policy values."""
+    """Queries with known relevance; builds policies, logs and true policy values.
 
-    relevance: Qrels
+    The relevance is copied into read-only mappings: the truth a log was simulated from
+    must not change under it. Worlds compare by value and are not hashable.
+    """
+
+    relevance: Mapping[QueryId, Mapping[DocId, float]] = field(repr=False)
+    __hash__ = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        frozen = {query: MappingProxyType(dict(judged)) for query, judged in self.relevance.items()}
+        object.__setattr__(self, "relevance", MappingProxyType(frozen))
+
+    def __repr__(self) -> str:
+        n_docs = sum(len(judged) for judged in self.relevance.values())
+        return f"ClickWorld({len(self.relevance)} queries, {n_docs} documents)"
 
     @classmethod
     def random(cls, n_queries: int = 200, docs_per_query: int = 20, seed: int = 0) -> "ClickWorld":
