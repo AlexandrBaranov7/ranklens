@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 import ranklens as rl
+from ranklens.core import SkippedRowsWarning
 from ranklens.explain import CallableAdapter
 
 NAMES = ["bm25", "bm25_title", "freshness"]
@@ -58,6 +59,19 @@ def test_worst_and_pair() -> None:
 
 def test_sample_of_queries() -> None:
     assert len(explainer(sample=7).queries) == 7
+
+
+def test_ids_are_read_like_the_runs_and_missing_grades_are_unjudged() -> None:
+    rows = table(3).assign(qid=lambda t: t["qid"].str[1:].astype(float))
+    rows.loc[0, "grade"] = np.nan
+    rows.loc[1, "qid"] = np.nan
+    with pytest.warns(SkippedRowsWarning, match="1 with an empty query id"):
+        made = rl.explainer(MODEL, rows, query="qid", doc="sku", relevance="grade")
+    first = made.queries[0]
+    assert [q.query_id for q in made.queries] == ["0", "1", "2"]
+    assert len(first.docs) == 9  # the row without a query is gone
+    assert "d0" in first.docs
+    assert "d0" not in first.judgements
 
 
 def test_models_without_names_take_the_given_features() -> None:

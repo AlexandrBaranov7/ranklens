@@ -14,7 +14,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
-from ranklens.api.data import table_of
+from ranklens.api.data import ids, keep_valid, table_of
 from ranklens.explain import (
     CallableAdapter,
     QueryFeatures,
@@ -116,7 +116,9 @@ def explainer(
     """An `Explainer` for ``model`` on the queries of ``frame``.
 
     ``sample`` keeps that many random queries: explanations score every query many
-    times, a few hundred queries are usually enough.
+    times, a few hundred queries are usually enough. Ids are read as in `rl.run`; rows
+    with an empty id are skipped with a `SkippedRowsWarning`, a missing grade leaves the
+    document without a judgement.
     """
     table = table_of(frame)
     adapter = adapt(model)
@@ -132,17 +134,27 @@ def explainer(
     missing = [n for n in names if n not in table.columns]
     if missing:
         raise KeyError(f"features of the model missing from the table: {missing}")
+    table = table.assign(_query=ids(table[query]), _doc=ids(table[doc]))
+    valid = {
+        "an empty query id": table["_query"].notna(),
+        "an empty document id": table["_doc"].notna(),
+    }
+    table = table[keep_valid(valid, "rl.explainer")]
     if sample is not None:
-        ids = table[query].drop_duplicates()
-        keep = ids.sample(n=min(sample, len(ids)), random_state=seed)
-        table = table[table[query].isin(keep)]
+        unique = table["_query"].drop_duplicates()
+        chosen = unique.sample(n=min(sample, len(unique)), random_state=seed)
+        table = table[table["_query"].isin(chosen)]
     queries = [
         QueryFeatures.of(
             str(q),
-            group[doc].astype(str).tolist(),
+            group["_doc"].tolist(),
             group[names].to_numpy(dtype=np.float64),
-            {str(d): float(r) for d, r in zip(group[doc], group[relevance], strict=True)},
+            {
+                d: float(r)
+                for d, r in zip(group["_doc"], group[relevance], strict=True)
+                if pd.notna(r)
+            },
         )
-        for q, group in table.groupby(query, sort=False)
+        for q, group in table.groupby("_query", sort=False)
     ]
     return Explainer(adapter, queries)

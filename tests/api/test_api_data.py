@@ -4,10 +4,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
 import ranklens as rl
+from ranklens.core import SkippedRowsWarning
 from ranklens.io import RunSchema, iter_run
 
 TABLE = pd.DataFrame(
@@ -88,6 +90,67 @@ def test_several_lists_per_query() -> None:
 def test_run_errors(kwargs: dict[str, str], error: type[Exception], message: str) -> None:
     with pytest.raises(error, match=message):
         rl.run(TABLE, query="qid", doc="sku", **kwargs)
+
+
+def test_integer_ids_stored_as_floats_match_the_qrels() -> None:
+    """pandas turns integer ids with a gap into floats: 1.0 must still be "1"."""
+    preds = pd.DataFrame(
+        {"qid": [1.0, 1.0, 2.0, None], "sku": [10, 11, 10, 12], "score": [0.2, 0.9, 0.5, 0.1]}
+    )
+    labels = pd.DataFrame({"qid": [1, 1, 2], "sku": [10, 11, 10], "grade": [0, 2, 1]})
+    with pytest.warns(
+        SkippedRowsWarning, match=r"rl\.run: skipped 1 rows \(1 with an empty query id\)"
+    ):
+        made = rl.run(preds, query="qid", doc="sku", score="score")
+    assert docs(made) == {"1": ("11", "10"), "2": ("10",)}
+    judged = rl.qrels(labels, query="qid", doc="sku", relevance="grade")
+    assert rl.evaluate(made, judged, ["ndcg@10"]).table.loc["ndcg@10", "queries"] == 2
+
+
+@pytest.mark.parametrize("dtype", ["object", "string"])
+def test_rows_with_an_empty_id_are_skipped_not_given_to_another_query(dtype: str) -> None:
+    table = pd.DataFrame(
+        {
+            "qid": ["a", "a", None, "b", " "],
+            "sku": ["x", None, "y", "z", "w"],
+            "score": [1.0, 2.0, 3.0, 4.0, 5.0],
+        }
+    ).astype({"qid": dtype, "sku": dtype})
+    expected = r"skipped 3 rows \(2 with an empty query id, 1 with an empty document id\)"
+    with pytest.warns(SkippedRowsWarning, match=expected):
+        made = rl.run(table, query="qid", doc="sku", score="score")
+    assert docs(made) == {"a": ("x",), "b": ("z",)}
+
+
+def test_scores_and_ranks_that_are_not_numbers_are_skipped() -> None:
+    table = pd.DataFrame(
+        {
+            "qid": ["a"] * 3,
+            "sku": ["x", "y", "z"],
+            "score": [0.1, np.nan, np.inf],
+            "pos": [1, None, 2],
+        }
+    )
+    with pytest.warns(SkippedRowsWarning, match="2 with a score that is not a finite number"):
+        assert docs(rl.run(table, query="qid", doc="sku", score="score")) == {"a": ("x",)}
+    with pytest.warns(SkippedRowsWarning, match="1 with a rank that is not a number"):
+        assert docs(rl.run(table, query="qid", doc="sku", rank="pos")) == {"a": ("x", "z")}
+
+
+def test_missing_segment_values_are_empty() -> None:
+    table = TABLE.assign(device=pd.Series([None, None, None, "desktop", "desktop"]))
+    made = rl.run(table, query="qid", doc="sku", score="score", segments="device")
+    assert made.segments == {"1": ("desktop",), "2": ("",)}
+
+
+def test_qrels_read_ids_like_the_runs() -> None:
+    table = pd.DataFrame(
+        {"qid": [1.0, None, 2.0, 2.0], "sku": [10, 11, 12, 13], "grade": [1, 2, np.nan, 0]}
+    )
+    expected = r"rl\.qrels: skipped 2 rows \(1 with an empty query id, 1 with a grade"
+    with pytest.warns(SkippedRowsWarning, match=expected):
+        judged = rl.qrels(table, query="qid", doc="sku", relevance="grade")
+    assert judged == {"1": {"10": 1.0}, "2": {"13": 0.0}}
 
 
 def test_qrels_with_and_without_zeros() -> None:
