@@ -1,4 +1,4 @@
-"""Shared pieces of metric definitions. Ranks in formulas are 1-based (D-004)."""
+"""Shared pieces of metric definitions. Ranks in formulas are 1-based."""
 
 import math
 from collections.abc import Callable, Iterable, Sequence

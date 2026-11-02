@@ -1,6 +1,6 @@
 """Ranking metrics, the registry of built-in metrics and evaluation of a run.
 
-What has which shape, and why there is no base class to inherit (D-017):
+What has which shape, and why there is no base class to inherit:
 
 - a **metric** is any callable ``(ranked, judgements, k) -> float``
   (`ranklens.core.Metric`, a Protocol). A plain function is a metric;

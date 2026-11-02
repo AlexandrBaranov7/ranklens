@@ -81,7 +81,7 @@ def test_unknown_estimator() -> None:
 
 
 def test_degenerate_weights_warn() -> None:
-    """DoD of week 9: the ESS warning fires on degenerate weights and only on them."""
+    """The ESS warning fires on degenerate weights and only on them."""
     steep = Propensity.power(depth=50, eta=2.0)  # a click at position 27 weighs 729
     log = WORLD.simulate(LOGGING, steep, n_impressions=3_000, seed=5)
     assert weight_diagnostics(log, steep).ess_share < 0.1

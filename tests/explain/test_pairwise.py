@@ -1,4 +1,4 @@
-"""Pairwise Shapley attribution: known answers first, then a trained model (DoD of week 10)."""
+"""Pairwise Shapley attribution: known answers first, then a trained model."""
 
 import importlib
 import os
@@ -115,7 +115,7 @@ def library(name: str) -> ModuleType:
 
 
 def test_a_trained_model_is_explained_by_the_feature_that_generated_the_data() -> None:
-    """DoD of week 10: relevance comes from f2, so pairs are told apart by f2."""
+    """Relevance comes from f2, so pairs are told apart by f2."""
     ensemble = library("sklearn.ensemble")
     rng = np.random.default_rng(0)
     features = rng.normal(size=(600, 5))

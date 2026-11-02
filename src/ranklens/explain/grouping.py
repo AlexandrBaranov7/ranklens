@@ -6,7 +6,7 @@ the signal. Grouped, they are shuffled together and get the credit the signal de
 
 Two features are linked when |Pearson correlation| >= ``threshold``; a group is a
 connected component of these links. That is single-linkage clustering cut at the
-threshold, done with union-find in a few lines instead of scipy (Q-10). Single linkage
+threshold, done with union-find in a few lines instead of scipy. Single linkage
 chains: a ~ b and b ~ c put a and c together even if they are not correlated — fine
 for "shuffle together", stated here so that nobody reads a group as a clique.
 """
