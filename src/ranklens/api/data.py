@@ -5,14 +5,18 @@ and cuts it into rankings, instead of parsing it row by row like the file reader
 test split of ten million rows becomes runs in seconds.
 """
 
+import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
+from ranklens.core.exceptions import SkippedRowsWarning
 from ranklens.core.types import DocId, Qrels, QueryId, RankedList, SegmentKey
+from ranklens.io.formats import scalar_text
 
 __all__ = ["Run", "agreement", "merge_qrels", "qrels", "run"]
 
@@ -27,6 +31,34 @@ def table_of(frame: Any) -> pd.DataFrame:
         converted: pd.DataFrame = frame.to_pandas()
         return converted
     return pd.DataFrame(frame)
+
+
+def ids(column: pd.Series) -> pd.Series:
+    """Ids as the file readers give them: 7.0 is "7"; a missing or blank id is <NA>."""
+    if column.dtype == object or pd.api.types.is_float_dtype(column):
+        # pandas stores integer ids with gaps as floats: 7.0 must match "7" in the qrels
+        column = column.map(scalar_text, na_action="ignore")
+    text = column.astype("string").str.strip()
+    return text.mask(text == "")
+
+
+def keep_valid(checks: Mapping[str, Any], where: str) -> npt.NDArray[np.bool_]:
+    """Rows that pass every check; the others are counted in a `SkippedRowsWarning`.
+
+    ``checks`` maps a reason ("an empty query id") to a boolean mask of valid rows.
+    """
+    masks = {reason: np.asarray(ok, dtype=bool) for reason, ok in checks.items()}
+    keep: npt.NDArray[np.bool_] = np.logical_and.reduce(list(masks.values()))
+    if not keep.all():
+        reasons = ", ".join(
+            f"{int((~ok).sum())} with {r}" for r, ok in masks.items() if not ok.all()
+        )
+        warnings.warn(
+            f"{where}: skipped {int((~keep).sum())} rows ({reasons})",
+            SkippedRowsWarning,
+            stacklevel=3,  # past this helper and its caller, to the user's line
+        )
+    return keep
 
 
 @dataclass(frozen=True)
@@ -71,6 +103,9 @@ def run(
     trec_eval does), by ``rank`` (ascending), or kept in row order when neither is given.
     ``segments`` are columns describing the query (device, region…): their first value
     in each query is taken.
+
+    Ids are read as the file readers read them (7.0 is "7"). Rows with an empty id or
+    a score or rank that is not a number are skipped with a `SkippedRowsWarning`.
     """
     if score is not None and rank is not None:
         raise ValueError("give score or rank, not both")
@@ -82,20 +117,33 @@ def run(
     if missing:
         raise KeyError(f"columns not in the table: {missing}; available: {list(table.columns)}")
     table = table[columns]
-    # integer codes instead of strings: one lexsort over ten million rows takes seconds
-    q_codes, q_values = pd.factorize(table[query].astype(str), sort=True)
-    d_codes, d_values = pd.factorize(table[doc].astype(str), sort=True)
+    q_ids, d_ids = ids(table[query]), ids(table[doc])
+    checks = {"an empty query id": q_ids.notna(), "an empty document id": d_ids.notna()}
     if list_id:
-        l_codes, l_index = pd.factorize(table[list_id].astype(str), sort=True)
+        l_ids = ids(table[list_id])
+        checks["an empty list id"] = l_ids.notna()
+    if score is not None:
+        scores = pd.to_numeric(table[score], errors="coerce").to_numpy(np.float64)
+        checks["a score that is not a finite number"] = np.isfinite(scores)
+    if rank is not None:
+        ranks = pd.to_numeric(table[rank], errors="coerce").to_numpy(np.float64)
+        checks["a rank that is not a number"] = ~np.isnan(ranks)
+    keep = keep_valid(checks, "rl.run")
+    table = table[keep]
+    # integer codes instead of strings: one lexsort over ten million rows takes seconds
+    q_codes, q_values = pd.factorize(q_ids[keep], sort=True)
+    d_codes, d_values = pd.factorize(d_ids[keep], sort=True)
+    if list_id:
+        l_codes, l_index = pd.factorize(l_ids[keep], sort=True)
         lists = l_index.to_numpy()
     else:
         l_codes, lists = np.zeros(len(table), dtype=np.int64), np.array([""])
     keys: tuple[np.ndarray, ...]
     if score is not None:
         # last key sorts first: query, list, score descending, doc id descending (trec_eval)
-        keys = (-d_codes, -table[score].to_numpy(dtype=np.float64), l_codes, q_codes)
+        keys = (-d_codes, -scores[keep], l_codes, q_codes)
     elif rank is not None:
-        keys = (table[rank].to_numpy(), l_codes, q_codes)
+        keys = (ranks[keep], l_codes, q_codes)
     else:
         keys = (np.arange(len(table)), l_codes, q_codes)
     order = np.lexsort(keys)
@@ -105,7 +153,7 @@ def run(
         np.r_[True, (q_sorted[1:] != q_sorted[:-1]) | (l_sorted[1:] != l_sorted[:-1])]
     )
     ends = np.r_[starts[1:], len(table)]
-    seg_values = [table[c].astype(str).to_numpy()[order] for c in names]
+    seg_values = [ids(table[c]).fillna("").to_numpy(dtype=object)[order] for c in names]
     queries = q_values.to_numpy()
     rankings: list[RankedList] = []
     query_of: dict[QueryId, QueryId] = {}
@@ -132,18 +180,25 @@ def qrels(frame: Any, *, query: str, doc: str, relevance: str, keep_zeros: bool 
 
     Zeros are judgements too ("judged not relevant"); ``keep_zeros=False`` drops them to
     save memory on large splits — then judged@k counts only relevant documents.
+    Ids are read as in `run`; rows with an empty id or a grade that is not a finite
+    number are skipped with a `SkippedRowsWarning`.
     """
     table = table_of(frame)[[query, doc, relevance]]
+    q_ids, d_ids = ids(table[query]), ids(table[doc])
+    grades = pd.to_numeric(table[relevance], errors="coerce").to_numpy(np.float64)
+    keep = keep_valid(
+        {
+            "an empty query id": q_ids.notna(),
+            "an empty document id": d_ids.notna(),
+            "a grade that is not a finite number": np.isfinite(grades),
+        },
+        "rl.qrels",
+    )
     if not keep_zeros:
-        table = table[table[relevance] > 0]
+        keep &= grades > 0
     result: Qrels = {}
-    for q, d, r in zip(
-        table[query].astype(str).to_numpy(),
-        table[doc].astype(str).to_numpy(),
-        table[relevance].astype(float).to_numpy(),
-        strict=True,
-    ):
-        result.setdefault(QueryId(q), {})[DocId(d)] = float(r)
+    for q, d, r in zip(q_ids[keep], d_ids[keep], grades[keep].tolist(), strict=True):
+        result.setdefault(QueryId(q), {})[DocId(d)] = r
     return result
 
 

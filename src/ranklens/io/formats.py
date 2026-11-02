@@ -32,6 +32,7 @@ __all__ = [
     "detect_format",
     "iter_records",
     "open_text",
+    "scalar_text",
     "source_name",
 ]
 
@@ -213,7 +214,7 @@ def scalar_fields(
             return {}, f"missing field {key!r}"
     fields: dict[str, str] = {}
     for key, value in values.items():
-        text = _scalar_text(value)
+        text = scalar_text(value)
         if text is not None:
             fields[key] = text
         elif key in required:
@@ -223,7 +224,8 @@ def scalar_fields(
     return fields, ""
 
 
-def _scalar_text(value: object) -> str | None:
+def scalar_text(value: object) -> str | None:
+    """A typed value as the text readers store it, or None when it is missing or not a scalar."""
     # bool is an int subclass, but True as an id or score is a data error
     if isinstance(value, str):
         return value
