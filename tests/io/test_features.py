@@ -59,6 +59,18 @@ def test_bad_rows_are_skipped_or_raised(tmp_path: Path) -> None:
         read_feature_table(write(tmp_path / "e.csv", TABLE + ",a,1,0.1,0.1\n"), strict=True)
 
 
+def test_a_grade_must_be_finite_a_feature_may_be_missing(tmp_path: Path) -> None:
+    text = "query_id,doc_id,relevance,bm25\nq,a,1,nan\nq,b,nan,1\nq,c,inf,1\n"
+    errors = ErrorCollector()
+    table = read_feature_table(write(tmp_path / "f.csv", text), errors=errors)
+    (query,) = table.queries
+    assert query.docs == ("a",)
+    assert str(query.rows[0][0]) == "nan"  # a missing feature value is kept
+    assert errors.snapshot().counts == (("MalformedRowError", 2),)
+    with pytest.raises(MalformedRowError, match="relevance 'nan' is not a finite number"):
+        read_feature_table(tmp_path / "f.csv", strict=True)
+
+
 @pytest.mark.parametrize(
     ("text", "kwargs", "error", "message"),
     [

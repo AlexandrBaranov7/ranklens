@@ -7,6 +7,7 @@ explanations are samples of queries, so the table is loaded whole, grouped by qu
 
 import csv
 import json
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from os import PathLike
@@ -85,6 +86,8 @@ def read_feature_table(
 
     Rows of a query need not be contiguous. A non-numeric feature or grade is a malformed
     row: skipped and recorded, or raised in ``strict`` mode, as in the other readers.
+    A feature may be ``nan`` — a missing value, which boosting models handle; a grade
+    must be finite, and an empty grade leaves the document without a judgement.
     """
     schema = schema or FeatureSchema()
     fmt = fmt or detect_format(source)
@@ -138,8 +141,17 @@ def _parse(
         raise MalformedRowError(record.line_no, record.raw, "empty query_id or doc_id", path)
     values = tuple(_number(record, column, path) for column in names)
     text = fields[schema.relevance].strip() if schema.relevance else ""
-    grade = _number(record, schema.relevance, path) if schema.relevance and text else None
+    grade = _grade(record, schema.relevance, path) if schema.relevance and text else None
     return QueryId(query), DocId(doc), values, grade
+
+
+def _grade(record: Record, column: str, path: str) -> float:
+    """A grade must be finite: NaN in the judgements would turn the query's metric into NaN."""
+    value = _number(record, column, path)
+    if not math.isfinite(value):
+        reason = f"{column} {record.fields[column].strip()!r} is not a finite number"
+        raise MalformedRowError(record.line_no, record.raw, reason, path)
+    return value
 
 
 def _number(record: Record, column: str, path: str) -> float:
