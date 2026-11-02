@@ -1,11 +1,12 @@
 """Value types shared by all layers."""
 
+import math
 from dataclasses import dataclass
 from typing import NewType, TypeAlias
 
 from ranklens.core.exceptions import DuplicateDocumentError
 
-__all__ = ["DocId", "Qrels", "QueryId", "RankedList", "SegmentKey"]
+__all__ = ["DocId", "Qrels", "QueryId", "RankedList", "SegmentKey", "scalar_text"]
 
 # ids are normalized to str when read: "1" and 1 must not become different keys
 QueryId = NewType("QueryId", str)
@@ -52,3 +53,27 @@ class RankedList:
         if k < 1:
             raise ValueError(f"k must be >= 1, got {k}")
         return self.docs[:k]
+
+
+def scalar_text(value: object) -> str | None:
+    """A typed value as the readers store it: an id or a number as text, 7.0 as "7".
+
+    None when the value is missing, a bool, or not a scalar. Every reader of typed data
+    (jsonl, Arrow, tables in ``rl``, event logs) goes through it, so "1", 1 and 1.0 are
+    one id everywhere.
+    """
+    if type(value).__module__ == "numpy":  # numpy scalars, without importing numpy
+        value = value.item()  # type: ignore[attr-defined]
+    # bool is an int subclass, but True as an id or score is a data error
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        if math.isnan(value):
+            return None
+        # pandas turns integer ids with gaps into floats: 1.0 must still match "1"
+        return str(int(value)) if value.is_integer() else repr(value)
+    return None
