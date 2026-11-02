@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from ranklens.core import FeedbackScale, MissingColumnError
+from ranklens.core import DataError, FeedbackScale, MissingColumnError
 from ranklens.offpolicy import EventColumns, impressions_from_events
 
 T0 = pd.Timestamp("2026-09-26 10:00:00")
@@ -164,3 +164,51 @@ def test_summary_line() -> None:
         "2 impressions; feedback events: 1 matched, 0 on documents not shown, "
         "0 outside the window; 0 repeated show events dropped"
     )
+
+
+def test_ids_of_different_types_still_match() -> None:
+    """Items as integers, feedback ids as strings or floats: one id, as everywhere else."""
+    numbers = pd.DataFrame(
+        [(1, "q", [10, 11], at("0s"))], columns=["request_id", "query_id", "items", "ts"]
+    )
+    events = pd.DataFrame(
+        [("1", "11", "click", at("1s")), (1.0, 10.0, "cart", at("2s"))],
+        columns=["request_id", "doc_id", "event", "ts"],
+    )
+    log = impressions_from_events(numbers, events, SCALE)
+    (shown,) = log.impressions
+    assert (shown.impression_id, shown.docs, shown.rewards) == ("1", ("10", "11"), (3.0, 1.0))
+    assert log.n_not_shown == 0
+
+
+def rows_form(*rows: tuple[object, object, object, object]) -> pd.DataFrame:
+    return pd.DataFrame(rows, columns=["request_id", "query_id", "doc_id", "position"])
+
+
+def test_rows_without_ids_are_dropped_and_counted() -> None:
+    table = rows_form(("r1", "q", "a", 1), ("r1", "q", None, 2), ("r1", "q", "c", 3))
+    events = pd.DataFrame(
+        [("r1", None, "click"), ("r1", "c", "click")], columns=["request_id", "doc_id", "event"]
+    )
+    log = impressions_from_events(table, events, SCALE)
+    (shown,) = log.impressions
+    assert (shown.docs, shown.positions, shown.rewards) == (("a", "c"), (1, 3), (0.0, 1.0))
+    assert (log.n_invalid_shows, log.n_not_shown) == (1, 1)
+    assert "1 shown rows without an id" in str(log)
+
+
+@pytest.mark.parametrize(
+    ("positions", "message"),
+    [
+        ((1, 1), "two documents at position 1"),
+        ((0, 1), "has position 0"),
+        ((1, 2.5), "has position 2.5"),
+        ((1, "top"), "has position 'top'"),
+    ],
+)
+def test_positions_of_the_row_form_are_checked(
+    positions: tuple[object, object], message: str
+) -> None:
+    table = rows_form(("r1", "q", "a", positions[0]), ("r1", "q", "b", positions[1]))
+    with pytest.raises(DataError, match=message):
+        impressions_from_events(table, feedback(), SCALE)
