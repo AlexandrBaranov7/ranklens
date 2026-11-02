@@ -11,11 +11,14 @@ are not adjusted: a segment's interval may exclude zero while its q-value does n
 pass ``alpha`` — the q-value is what decides.
 """
 
+import warnings
+import zlib
 from collections.abc import Mapping, Sequence
 
 import numpy as np
 import pandas as pd
 
+from ranklens.core.exceptions import RankLensWarning
 from ranklens.core.result import ComparisonResult, MetricResult
 from ranklens.core.types import QueryId, SegmentKey
 from ranklens.stats import MIN_QUERIES, adjust, compare
@@ -69,16 +72,22 @@ def compare_segments(
     statistics instead of unreliable ones — they are shown, not silently dropped, and
     they do not take part in the correction. Rows are sorted by the segment fields.
 
-    Each segment draws its own random stream from ``seed``: with one shared stream,
-    segments of equal size would get identical resamples and correlated p-values.
+    Each segment draws its own random stream from ``seed`` and its own values: with one
+    shared stream, segments of equal size would get identical resamples and correlated
+    p-values; and a segment keeps its numbers when other segments come or go.
+    Paired queries without segment values are left out with a warning.
     """
     _check_names(names)
-    groups = _group(baseline, candidate, segments, names)
-    keys = sorted(groups)  # fixed order, so that a segment gets the same stream every run
-    streams = np.random.SeedSequence(seed).generate_state(len(keys))
+    groups, n_unplaced = _group(baseline, candidate, segments, names)
+    if n_unplaced:
+        warnings.warn(
+            f"{n_unplaced} paired queries have no value for {list(names)} and are in no segment",
+            RankLensWarning,
+            stacklevel=2,
+        )
     compared: dict[SegmentKey, ComparisonResult] = {}
     small: dict[SegmentKey, int] = {}
-    for key, stream in zip(keys, streams, strict=True):
+    for key in sorted(groups):
         queries = groups[key]
         if len(queries) < min_queries:
             small[key] = len(queries)
@@ -90,7 +99,7 @@ def compare_segments(
             alpha=alpha,
             n_resamples=n_resamples,
             n_permutations=n_permutations,
-            seed=int(stream),
+            seed=_stream(seed, key),
         )
     corrected = dict(zip(compared, adjust(list(compared.values())), strict=True))
 
@@ -109,19 +118,28 @@ def _row(result: ComparisonResult) -> dict[str, object]:
     return {column: getattr(result, column) for column in COLUMNS}
 
 
+def _stream(seed: int, key: SegmentKey) -> int:
+    # crc32, not hash(): str hashes change between interpreter runs
+    label = zlib.crc32("\x1f".join(key).encode("utf-8"))
+    return int(np.random.SeedSequence([seed, label]).generate_state(1)[0])
+
+
 def _group(
     baseline: MetricResult,
     candidate: MetricResult,
     segments: Mapping[QueryId, SegmentKey],
     names: Sequence[str],
-) -> dict[SegmentKey, list[QueryId]]:
+) -> tuple[dict[SegmentKey, list[QueryId]], int]:
+    """Paired queries by segment, and how many of them have no segment values."""
     groups: dict[SegmentKey, list[QueryId]] = {}
+    unplaced = 0
     for query in baseline.per_query.keys() & candidate.per_query.keys():
         key = segments.get(query)
         if key is None or len(key) != len(names):
-            continue  # a query without segment values cannot be placed in a slice
+            unplaced += 1
+            continue
         groups.setdefault(key, []).append(query)
-    return groups
+    return groups, unplaced
 
 
 def _subset(result: MetricResult, queries: Sequence[QueryId]) -> MetricResult:
