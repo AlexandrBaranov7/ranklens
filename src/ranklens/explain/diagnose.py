@@ -9,6 +9,7 @@ from collections.abc import Iterable, Sequence
 
 from ranklens.core.registry import BoundMetric
 from ranklens.core.result import QueryDiagnosis
+from ranklens.core.types import DocId
 from ranklens.explain.adapters.base import ScorerAdapter
 from ranklens.explain.data import QueryFeatures
 from ranklens.explain.listwise import listwise, ranking
@@ -29,14 +30,15 @@ def diagnose(
 ) -> tuple[QueryDiagnosis, ...]:
     """The ``top`` queries with the lowest metric, worst first (ties by query id).
 
-    Only queries with at least one relevant document are considered.
+    Only queries where the metric can be above 0 are considered: the ideal order of
+    their documents scores more than 0 (for ``map`` and ``mrr`` a grade of 0.5 is not
+    relevant, so "has a positive grade" would not do).
     """
     if top < 1:
         raise ValueError(f"top must be >= 1, got {top}")
     bound = resolve(metric) if isinstance(metric, str) else metric
-    # a query with no relevant document scores 0 whatever the model does: it would always
-    # be "worst" and nothing could be learned from it
-    pool = [q for q in queries if any(grade > 0 for grade in q.judgements.values())]
+    # a query that scores 0 whatever the model does would always be "worst" and teach nothing
+    pool = [q for q in queries if bound(_ideal(q), q.judgements) > 0]
     values = {
         q.query_id: bound(ranking(q.docs, model.score(q.features)), q.judgements) for q in pool
     }
@@ -53,3 +55,7 @@ def diagnose(
             QueryDiagnosis(query.query_id, bound.label, float(values[query.query_id]), causes)
         )
     return tuple(diagnoses)
+
+
+def _ideal(query: QueryFeatures) -> tuple[DocId, ...]:
+    return tuple(sorted(query.docs, key=lambda doc: -query.judgements.get(doc, 0.0)))
