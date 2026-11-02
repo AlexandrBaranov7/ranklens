@@ -10,7 +10,12 @@ arrive as separate events. This module does the join and makes its choices expli
   is dropped and counted;
 - event types missing from the scale are ignored and counted by type;
 - a repeated show of the same request (at-least-once delivery) is dropped and counted;
-  the earliest one is kept.
+  the earliest one is kept;
+- ids are read as everywhere else (7.0 is "7", so integer ids stored as floats still
+  match); a shown row without a request, query or document id is dropped and counted,
+  an event without one counts as not shown;
+- positions of the row form are whole numbers from 1, one document each: anything else
+  is a `DataError`, not a guess.
 """
 
 from collections.abc import Mapping
@@ -19,9 +24,9 @@ from types import MappingProxyType
 
 import pandas as pd
 
-from ranklens.core.exceptions import MissingColumnError
+from ranklens.core.exceptions import DataError, MissingColumnError
 from ranklens.core.feedback import FeedbackScale, Impression
-from ranklens.core.types import DocId, QueryId
+from ranklens.core.types import DocId, QueryId, scalar_text
 
 __all__ = ["EventColumns", "EventLog", "impressions_from_events"]
 
@@ -55,6 +60,8 @@ class EventLog:
     n_not_shown: int = 0
     n_outside_window: int = 0
     ignored_events: Mapping[str, int] = field(default_factory=lambda: MappingProxyType({}))
+    n_invalid_shows: int = 0
+    """Shown rows without a request, query or document id."""
 
     def __str__(self) -> str:
         ignored = ", ".join(f"{event}: {n}" for event, n in self.ignored_events.items())
@@ -62,6 +69,7 @@ class EventLog:
             f"{len(self.impressions)} impressions; feedback events: {self.n_matched} matched, "
             f"{self.n_not_shown} on documents not shown, {self.n_outside_window} outside "
             f"the window; {self.n_duplicate_shows} repeated show events dropped"
+            + (f"; {self.n_invalid_shows} shown rows without an id" if self.n_invalid_shows else "")
             + (f"; ignored event types: {ignored}" if ignored else "")
         )
 
@@ -97,7 +105,15 @@ def impressions_from_events(
         "shows",
     )
     _require(feedback, [c.request_id, c.doc_id, c.event, *([c.ts] if timed else [])], "feedback")
-    shown, n_duplicate = _long_shows(shows, c, need_ts=timed)
+    shows = shows.assign(
+        **{c.request_id: _ids(shows[c.request_id]), c.query_id: _ids(shows[c.query_id])}
+    )
+    shown, n_duplicate, n_invalid = _long_shows(shows, c, need_ts=timed)
+    feedback = feedback.assign(
+        **{c.request_id: _ids(feedback[c.request_id]), c.doc_id: _ids(feedback[c.doc_id])}
+    )
+    # an event without an id matches nothing; NA keys would match each other in a merge
+    feedback = feedback.fillna({c.request_id: "\x00", c.doc_id: "\x00"})
 
     known = feedback[c.event].isin(scale.events)
     ignored = feedback.loc[~known, c.event].value_counts(sort=False)
@@ -142,6 +158,7 @@ def impressions_from_events(
         n_not_shown=n_not_shown,
         n_outside_window=n_outside,
         ignored_events=MappingProxyType({str(e): int(n) for e, n in ignored.items()}),
+        n_invalid_shows=n_invalid,
     )
 
 
@@ -151,8 +168,42 @@ def _require(table: pd.DataFrame, required: list[str], name: str) -> None:
             raise MissingColumnError(column, [str(c) for c in table.columns], path=name)
 
 
-def _long_shows(shows: pd.DataFrame, c: EventColumns, *, need_ts: bool) -> tuple[pd.DataFrame, int]:
-    """One row per shown document: request, query, doc, position and show time."""
+def _ids(column: pd.Series) -> pd.Series:
+    """Ids as text by the readers' rule (as `rl.run` does); missing or blank is <NA>."""
+    if column.dtype == object or pd.api.types.is_float_dtype(column):
+        column = column.map(scalar_text, na_action="ignore")
+    text = column.astype("string").str.strip()
+    return text.mask(text == "")
+
+
+def _positions(long: pd.DataFrame, c: EventColumns) -> pd.Series:
+    """Positions of the row form: whole numbers from 1, one document each."""
+    positions = pd.to_numeric(long[c.position], errors="coerce")
+    bad = positions.isna() | (positions < 1) | (positions != positions.round())
+    if bad.any():
+        request, value = long.loc[bad, [c.request_id, c.position]].iloc[0].tolist()
+        raise DataError(
+            f"shows: request {request!r} has position {_plain(value)!r}; "
+            "positions are whole numbers from 1"
+        )
+    taken = long.assign(_p=positions).duplicated([c.request_id, "_p"])
+    if taken.any():
+        request, value = long.loc[taken, [c.request_id, c.position]].iloc[0].tolist()
+        raise DataError(
+            f"shows: request {request!r} has two documents at position {_plain(value)!r}"
+        )
+    return positions.astype("int64")
+
+
+def _plain(value: object) -> object:
+    """A numpy scalar as the Python value it holds, for error messages."""
+    return value.item() if type(value).__module__ == "numpy" else value  # type: ignore[attr-defined]
+
+
+def _long_shows(
+    shows: pd.DataFrame, c: EventColumns, *, need_ts: bool
+) -> tuple[pd.DataFrame, int, int]:
+    """One row per shown document, the number of repeated shows and of rows without ids."""
     if need_ts:
         shows = shows.sort_values(c.ts, kind="stable")
     if c.items in shows.columns:
@@ -161,11 +212,21 @@ def _long_shows(shows: pd.DataFrame, c: EventColumns, *, need_ts: bool) -> tuple
         long = unique.explode(c.items, ignore_index=True).dropna(subset=[c.items])
         long = long.rename(columns={c.items: c.doc_id})
         long[c.position] = long.groupby(c.request_id, sort=False).cumcount() + 1
+        long[c.doc_id] = _ids(long[c.doc_id])
+        long, n_invalid = _with_ids(long, c)
     else:
+        shows, n_invalid = _with_ids(shows.assign(**{c.doc_id: _ids(shows[c.doc_id])}), c)
         long = shows.drop_duplicates([c.request_id, c.doc_id])
         n_duplicate = len(shows) - len(long)
+        long = long.assign(**{c.position: _positions(long, c)})
     long = long.drop_duplicates([c.request_id, c.doc_id])  # a document shown twice: first place
     long = long.assign(_shown_at=long[c.ts] if need_ts else None)  # time only with a window
     order = long.groupby(c.request_id, sort=False).ngroup()
     long = long.assign(_order=order.to_numpy()).sort_values(["_order", c.position], kind="stable")
-    return long[[c.request_id, c.query_id, c.doc_id, c.position, "_shown_at"]], n_duplicate
+    columns = [c.request_id, c.query_id, c.doc_id, c.position, "_shown_at"]
+    return long[columns], n_duplicate, n_invalid
+
+
+def _with_ids(rows: pd.DataFrame, c: EventColumns) -> tuple[pd.DataFrame, int]:
+    valid = rows[c.request_id].notna() & rows[c.query_id].notna() & rows[c.doc_id].notna()
+    return rows[valid], int((~valid).sum())
