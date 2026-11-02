@@ -95,3 +95,10 @@ def test_a_huge_query_does_not_widen_the_whole_batch(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(evaluation, "BATCH_CELLS", 1000)
     assert evaluate(runs, qrels, metrics) == expected
     assert sizes == [(3, 2), (1, 1000), (2, 2)]
+def test_evaluation_finds_a_metric_in_any_spelling() -> None:
+    evaluation = Evaluation((MetricResult("ndcg@10", {QueryId("q"): 1.0}),), n_queries=1)
+    assert evaluation["NDCG@010"] is evaluation["ndcg@10"]
+    with pytest.raises(KeyError):
+        evaluation["mrr"]
+    with pytest.raises(KeyError):
+        evaluation["not a spec ("]

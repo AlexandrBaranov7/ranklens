@@ -32,6 +32,8 @@ class RankedList:
         # frozen protects attributes, not a mutable container inside them
         if not isinstance(self.docs, tuple):
             raise TypeError(f"docs must be a tuple, got {type(self.docs).__name__}")
+        if not isinstance(self.segments, tuple):
+            raise TypeError(f"segments must be a tuple, got {type(self.segments).__name__}")
         if self.scores is not None:
             if not isinstance(self.scores, tuple):
                 raise TypeError(f"scores must be a tuple, got {type(self.scores).__name__}")
