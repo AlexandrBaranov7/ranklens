@@ -48,11 +48,16 @@ class MetricResult:
     """Values of one metric: per query and their mean.
 
     ``per_query`` is a read-only mapping (``types.MappingProxyType``): results are
-    shared between statistics and reports and must not be changed by either.
+    shared between statistics and reports and must not be changed by either. Any other
+    mapping is copied on construction, so changing it later does not change the result.
     """
 
     metric: str
     per_query: Mapping[QueryId, float]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.per_query, MappingProxyType):
+            object.__setattr__(self, "per_query", MappingProxyType(dict(self.per_query)))
 
     @property
     def n_queries(self) -> int:
