@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "ranklens"
-version = "0.1.0"
+version = "0.2.0"
 description = "Offline evaluation, statistical comparison and explanation of ranking quality"
 readme = "README.md"
 license = "MIT"
@@ -14,7 +14,7 @@ requires-python = ">=3.11"
 dependencies = ["numpy>=1.26", "pandas>=2.2"]
 keywords = ["ranking", "information-retrieval", "ndcg", "evaluation", "off-policy", "learning-to-rank"]
 classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
+  "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
