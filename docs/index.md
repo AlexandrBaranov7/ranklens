@@ -130,13 +130,7 @@ print(ex.worst(3)[["ndcg@10", "cause 1"]].round(3))  # худшие запрос
 ## Установка
 
 ```bash
-pip install "ranklens[viz] @ git+https://github.com/AlexandrBaranov7/ranklens"
-```
-
-Версия 0.1.0 опубликована на TestPyPI:
-
-```bash
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ ranklens
+pip install "ranklens[viz]"
 ```
 
 Extras: `viz` (графики и отчёты), `arrow` (parquet, Feather), `models` (CatBoost,

@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-11-03
+
+Первый релиз на PyPI.
+
 ### Добавлено
 
 - Колонка `mde` в таблице `rl.compare`: минимальный заметный эффект по метрике и сегменту.
@@ -197,5 +201,6 @@
 - «Первые шаги»: p-value — вероятность увидеть такую же **или более экстремальную**
   разницу при отсутствии эффекта.
 
-[Unreleased]: https://github.com/AlexandrBaranov7/ranklens/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/AlexandrBaranov7/ranklens/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/AlexandrBaranov7/ranklens/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AlexandrBaranov7/ranklens/releases/tag/v0.1.0

@@ -1,11 +1,12 @@
 <h1>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/brand/logo-wordmark-dark.svg">
-    <img src="docs/images/brand/logo-wordmark.svg" alt="ranklens" height="64">
+    <img src="https://alexandrbaranov7.github.io/ranklens/images/brand/logo-wordmark.svg" alt="ranklens" height="64">
   </picture>
 </h1>
 
 [![CI](https://github.com/AlexandrBaranov7/ranklens/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexandrBaranov7/ranklens/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/ranklens)](https://pypi.org/project/ranklens/)
 [![Документация](https://img.shields.io/badge/docs-ranklens-00958c)](https://alexandrbaranov7.github.io/ranklens/)
 
 Модель поменяли — стало ли лучше, **где** и **почему**? ranklens отвечает на это из
@@ -91,13 +92,12 @@ price_rank              0.0006
 ## Установка
 
 ```bash
-pip install "ranklens[viz] @ git+https://github.com/AlexandrBaranov7/ranklens"
+pip install "ranklens[viz]"
 ```
 
-Версия 0.1.0 есть на TestPyPI: `pip install -i https://test.pypi.org/simple/
---extra-index-url https://pypi.org/simple/ ranklens`. Extras: `viz` (графики
-и HTML-отчёты), `arrow` (parquet, Feather), `models` (CatBoost, LightGBM, XGBoost,
-scikit-learn), `neural` (ONNX). PyTorch ставится по инструкции pytorch.org.
+Extras: `viz` (графики и HTML-отчёты), `arrow` (parquet, Feather), `models` (CatBoost,
+LightGBM, XGBoost, scikit-learn), `neural` (ONNX). PyTorch ставится по инструкции
+pytorch.org. Свежий `main` — `pip install "ranklens @ git+https://github.com/AlexandrBaranov7/ranklens"`.
 
 ## Данные и командная строка
 
@@ -132,7 +132,7 @@ ndcg@10  mobile   ru      60       0.6137  0.6926  +0.0789  [+0.0409, +0.1234]  
 после поправки — синим), распределение поразапросных разниц, метрика по cutoff,
 перемещения документов из топ-10.
 
-![Отчёт сравнения: таблица и разница по сегментам](docs/images/compare-report.jpg)
+![Отчёт сравнения: таблица и разница по сегментам](https://alexandrbaranov7.github.io/ranklens/images/compare-report.jpg)
 
 Подробнее — [«Первые шаги»](https://alexandrbaranov7.github.io/ranklens/tutorial/).
 
@@ -236,7 +236,7 @@ read-only массивы numpy — `frozen` сам по себе запреща�
   ([#34](https://github.com/AlexandrBaranov7/ranklens/issues/34),
   [#35](https://github.com/AlexandrBaranov7/ranklens/issues/35)).
 - **Модели из pickle** исполняют код при загрузке — только с `--allow-pickle`
-  ([SECURITY.md](SECURITY.md)).
+  ([SECURITY.md](https://github.com/AlexandrBaranov7/ranklens/blob/main/SECURITY.md)).
 
 ## Roadmap
 
@@ -256,7 +256,7 @@ poetry install --all-extras   # Poetry >= 2.4
 poetry run pytest
 ```
 
-Правила — в [CONTRIBUTING.md](CONTRIBUTING.md), изменения — в [CHANGELOG.md](CHANGELOG.md).
+Правила — в [CONTRIBUTING.md](https://github.com/AlexandrBaranov7/ranklens/blob/main/CONTRIBUTING.md), изменения — в [CHANGELOG.md](https://github.com/AlexandrBaranov7/ranklens/blob/main/CHANGELOG.md).
 
 ## Лицензия
 
