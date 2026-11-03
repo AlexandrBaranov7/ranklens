@@ -1,5 +1,6 @@
 """rl.evaluate and rl.compare equal the lower-level functions they are built on."""
 
+import math
 from collections.abc import Mapping
 
 import numpy as np
@@ -152,3 +153,10 @@ def test_runs_that_disagree_on_segments_warn() -> None:
     candidate = rl.run(relabelled, query="q", doc="d", score="score", segments="device")
     with pytest.warns(RankLensWarning, match="1 queries have different segment values"):
         rl.compare(runs(BASE)[0], candidate, QRELS, ["ndcg@10"], by="device", **FAST)
+
+
+def test_mde_needs_two_paired_queries() -> None:
+    from ranklens.api.compare import _mde
+
+    one = MetricResult("ndcg@10", {QueryId("q"): 0.5})
+    assert math.isnan(_mde(one, one, 0.05))
