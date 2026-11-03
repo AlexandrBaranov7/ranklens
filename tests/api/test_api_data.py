@@ -205,3 +205,8 @@ def test_import_stays_light_and_names_resolve_lazily() -> None:
     assert "compare" in dir(rl)
     with pytest.raises(AttributeError, match="no attribute 'nothing'"):
         rl.nothing  # noqa: B018
+
+
+def test_a_plain_mapping_of_columns_is_a_table() -> None:
+    columns = {"qid": ["q", "q"], "sku": ["a", "b"], "score": [0.1, 0.9]}
+    assert docs(rl.run(columns, query="qid", doc="sku", score="score")) == {"q": ("b", "a")}

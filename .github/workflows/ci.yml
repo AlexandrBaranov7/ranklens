@@ -105,7 +105,8 @@ jobs:
       - run: poetry install --extras "models neural viz"
       # torch stays out of the lock: from PyPI on Linux it pulls gigabytes of CUDA libraries
       - run: poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - run: poetry run pytest tests/explain tests/viz -rs
+      # the whole suite with every extra: the coverage the matrix cannot measure
+      - run: poetry run pytest -m "not slow" -rs --cov --cov-report=term-missing --cov-fail-under=98
         env:
           RANKLENS_REQUIRE_MODELS: "1"
 
